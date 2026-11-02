@@ -1,0 +1,234 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --canvas: #f7f6f2;
+  --surface: #ffffff;
+  --surface-2: #fbfaf7;
+  --surface-3: #f1f0ea;
+  --ink: #141411;
+  --ink-2: #4d4d45;
+  --ink-3: #76766c;
+  --line: #e5e4dc;
+  --line-strong: #d4d3c9;
+  --accent: #0c7a43;
+  --accent-hover: #096537;
+  --accent-wash: #e7f2eb;
+  --danger: #a33a32;
+  --danger-wash: #f8e9e6;
+  --warning: #8a651a;
+  --warning-wash: #f7eed8;
+  --info: #2f5d78;
+  --info-wash: #e4eef5;
+  --category-meeting: #2f5d78;
+  --category-meeting-bg: #e4eef5;
+  --category-deadline: #8b4039;
+  --category-deadline-bg: #f4e5e2;
+  --category-milestone: #3f5c3a;
+  --category-milestone-bg: #e7efe3;
+  --category-leave: #7a5a1f;
+  --category-leave-bg: #f5ebd7;
+  --category-focus: #6e5140;
+  --category-focus-bg: #efe6dd;
+  --category-holiday: #5d5d54;
+  --category-holiday-bg: #edede7;
+  --category-other: #67675e;
+  --category-other-bg: #ecece6;
+  --font-sans: 'Instrument Sans', 'Helvetica Neue', sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #121310;
+  --surface: #191a16;
+  --surface-2: #1e1f1a;
+  --surface-3: #25261f;
+  --ink: #f2f0e8;
+  --ink-2: #c7c4b8;
+  --ink-3: #9b9a90;
+  --line: #2b2c26;
+  --line-strong: #3a3b33;
+  --accent: #5bc08a;
+  --accent-hover: #74d09e;
+  --accent-wash: #1d2b22;
+  --danger: #e2847a;
+  --danger-wash: #2d1d1a;
+  --warning: #d8b66a;
+  --warning-wash: #2b2416;
+  --info: #8bbdd8;
+  --info-wash: #192831;
+  --category-meeting: #8bbdd8;
+  --category-meeting-bg: #192831;
+  --category-deadline: #e0a19a;
+  --category-deadline-bg: #2e1e1c;
+  --category-milestone: #a8c9a0;
+  --category-milestone-bg: #1c291b;
+  --category-leave: #d8b66a;
+  --category-leave-bg: #2b2416;
+  --category-focus: #cbb29d;
+  --category-focus-bg: #2a211b;
+  --category-holiday: #b4b3a8;
+  --category-holiday-bg: #26261f;
+  --category-other: #a8a79c;
+  --category-other-bg: #24241f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-wash: var(--accent-wash);
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-warning: var(--warning);
+  --color-warning-wash: var(--warning-wash);
+  --color-info: var(--info);
+  --color-info-wash: var(--info-wash);
+  --color-cat-meeting: var(--category-meeting);
+  --color-cat-meeting-bg: var(--category-meeting-bg);
+  --color-cat-deadline: var(--category-deadline);
+  --color-cat-deadline-bg: var(--category-deadline-bg);
+  --color-cat-milestone: var(--category-milestone);
+  --color-cat-milestone-bg: var(--category-milestone-bg);
+  --color-cat-leave: var(--category-leave);
+  --color-cat-leave-bg: var(--category-leave-bg);
+  --color-cat-focus: var(--category-focus);
+  --color-cat-focus-bg: var(--category-focus-bg);
+  --color-cat-holiday: var(--category-holiday);
+  --color-cat-holiday-bg: var(--category-holiday-bg);
+  --color-cat-other: var(--category-other);
+  --color-cat-other-bg: var(--category-other-bg);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --radius-control: 6px;
+  --radius-panel: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: var(--line-strong);
+}
+
+.ledger-rule {
+  border-top: 1px solid var(--line);
+}
+
+.ledger-margin {
+  border-right: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.ink-stamp {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.paper-noise {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
