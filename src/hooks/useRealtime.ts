@@ -27,6 +27,9 @@ export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
     function invalidateEvents() {
       void queryClient.invalidateQueries({ queryKey: ['events'] })
       void queryClient.invalidateQueries({ queryKey: ['calendars'] })
+      void queryClient.invalidateQueries({ queryKey: ['comments'] })
+      void queryClient.invalidateQueries({ queryKey: ['attachments'] })
+      void queryClient.invalidateQueries({ queryKey: ['activity'] })
     }
 
     function invalidateNotifications() {
