@@ -25,6 +25,10 @@ type WorkspaceContextValue = {
   error: string | null
   setActiveWorkspaceId: (workspaceId: string) => void
   refresh: () => void
+  upsertTeam: (team: Team) => void
+  removeTeam: (teamId: string) => void
+  upsertMember: (membership: WorkspaceMembership) => void
+  removeMember: (userId: string) => void
 }
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
@@ -128,6 +132,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(() => setReloadKey((key) => key + 1), [])
 
+  const upsertTeam = useCallback((team: Team) => {
+    setTeams((current) => {
+      const exists = current.some((item) => item.id === team.id)
+      const next = exists
+        ? current.map((item) => (item.id === team.id ? team : item))
+        : [...current, team]
+      return next.sort((a, b) => a.name.localeCompare(b.name))
+    })
+  }, [])
+
+  const removeTeam = useCallback((teamId: string) => {
+    setTeams((current) => current.filter((team) => team.id !== teamId))
+  }, [])
+
+  const upsertMember = useCallback((membership: WorkspaceMembership) => {
+    setMembers((current) => {
+      const exists = current.some((item) => item.userId === membership.userId)
+      return exists
+        ? current.map((item) => (item.userId === membership.userId ? membership : item))
+        : [...current, membership]
+    })
+  }, [])
+
+  const removeMember = useCallback((userId: string) => {
+    setMembers((current) => current.filter((member) => member.userId !== userId))
+  }, [])
+
   const value = useMemo<WorkspaceContextValue>(() => {
     const activeWorkspace = workspaces.find((item) => item.id === activeWorkspaceId) ?? null
     const membership =
@@ -145,14 +176,22 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       error,
       setActiveWorkspaceId,
       refresh,
+      upsertTeam,
+      removeTeam,
+      upsertMember,
+      removeMember,
     }
   }, [
     activeWorkspaceId,
     error,
     loading,
     members,
+    removeMember,
+    removeTeam,
     setActiveWorkspaceId,
     teams,
+    upsertMember,
+    upsertTeam,
     user?.id,
     workspaces,
     refresh,

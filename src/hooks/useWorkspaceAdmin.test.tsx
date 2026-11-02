@@ -6,12 +6,13 @@ import { DEMO_WORKSPACE_ID } from '../data/demo/demoData'
 import { queryClient } from '../lib/queryClient'
 import { AuthProvider } from '../providers/AuthProvider'
 import { QueryProvider } from '../providers/QueryProvider'
-import { WorkspaceProvider } from '../providers/WorkspaceProvider'
+import { useWorkspace, WorkspaceProvider } from '../providers/WorkspaceProvider'
 import { useCalendars } from './useCalendars'
 import { useWorkspaceAdmin } from './useWorkspaceAdmin'
 
 function SidebarProbe() {
   const calendars = useCalendars(DEMO_WORKSPACE_ID)
+  const { teams } = useWorkspace()
   const admin = useWorkspaceAdmin(DEMO_WORKSPACE_ID)
 
   return (
@@ -19,6 +20,7 @@ function SidebarProbe() {
       <div data-testid="calendar-names">
         {calendars.data?.map((calendar) => calendar.name).join('|') ?? 'loading'}
       </div>
+      <div data-testid="team-names">{teams.map((team) => team.name).join('|')}</div>
       <button
         type="button"
         onClick={() =>
@@ -33,6 +35,20 @@ function SidebarProbe() {
         }
       >
         Create calendar
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          admin.createTeam.mutate({
+            name: 'QA team',
+            description: '',
+            color: '#2F5D78',
+            leadIds: [],
+            memberIds: [],
+          })
+        }
+      >
+        Create team
       </button>
     </div>
   )
@@ -70,6 +86,21 @@ describe('useWorkspaceAdmin', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('calendar-names')).toHaveTextContent('Launch room')
+    })
+  })
+
+  it('adds a created team to the sidebar list', async () => {
+    const user = userEvent.setup()
+    renderProbe()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('team-names')).not.toBeEmptyDOMElement()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Create team' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('team-names')).toHaveTextContent('QA team')
     })
   })
 })
