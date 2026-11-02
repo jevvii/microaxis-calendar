@@ -14,6 +14,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { TeamPage } from './pages/TeamPage'
 import { WorkspacePage } from './pages/WorkspacePage'
 import { AuthProvider, useAuth } from './providers/AuthProvider'
+import { QueryProvider } from './providers/QueryProvider'
 import { ThemeProvider } from './providers/ThemeProvider'
 import { ToastProvider } from './providers/ToastProvider'
 import { WorkspaceProvider } from './providers/WorkspaceProvider'
@@ -48,9 +49,10 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <ToastProvider>
-          <DataProviderProvider>
-            <AuthProvider>
-              <WorkspaceProvider>
+          <QueryProvider>
+            <DataProviderProvider>
+              <AuthProvider>
+                <WorkspaceProvider>
                 <Routes>
                   <Route path="/" element={<RootRedirect />} />
                   <Route path="/auth" element={<AuthPage />} />
@@ -70,9 +72,10 @@ export default function App() {
                   </Route>
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
-              </WorkspaceProvider>
-            </AuthProvider>
-          </DataProviderProvider>
+                </WorkspaceProvider>
+              </AuthProvider>
+            </DataProviderProvider>
+          </QueryProvider>
         </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>

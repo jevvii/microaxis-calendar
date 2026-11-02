@@ -9,6 +9,7 @@ import { addDays, format, getISOWeek, startOfWeek } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useDataProvider } from '../../data/provider'
+import { useRealtimeWorkspace } from '../../hooks/useRealtime'
 import { useAuth } from '../../providers/AuthProvider'
 import { useWorkspace } from '../../providers/WorkspaceProvider'
 import { useToast } from '../../providers/ToastProvider'
@@ -39,6 +40,7 @@ export function AppLayout() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [calendars, setCalendars] = useState<Calendar[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
+  useRealtimeWorkspace(activeWorkspaceId)
 
   useEffect(() => {
     if (!activeWorkspaceId) {

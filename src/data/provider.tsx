@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { env } from '../lib/env'
 import type { DataProvider } from './types'
 import { createDemoProvider } from './demo/demoProvider'
+import { createSupabaseProvider } from './supabase/supabaseProvider'
 
 const DataProviderContext = createContext<DataProvider | null>(null)
 
@@ -31,7 +32,12 @@ function createUnconfiguredProvider(): DataProvider {
 
 export function DataProviderProvider({ children }: { children: ReactNode }) {
   const provider = useMemo(
-    () => (env.demoMode ? createDemoProvider() : createUnconfiguredProvider()),
+    () =>
+      env.demoMode
+        ? createDemoProvider()
+        : env.supabaseUrl
+          ? createSupabaseProvider()
+          : createUnconfiguredProvider(),
     [],
   )
 

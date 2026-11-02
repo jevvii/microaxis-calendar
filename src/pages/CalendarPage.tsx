@@ -9,15 +9,16 @@ import {
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useDataProvider } from '../data/provider'
+import { useCalendars } from '../hooks/useCalendars'
+import { useEvents } from '../hooks/useEvents'
 import { useAuth } from '../providers/AuthProvider'
 import { useToast } from '../providers/ToastProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 import { dateKeyInTimeZone, eventTimeLabel } from '../lib/date'
 import { expandRecurrence } from '../lib/recurrence'
-import type { Calendar, Event, EventOccurrence } from '../types/domain'
+import type { EventOccurrence } from '../types/domain'
 import { Avatar } from '../components/ui/Avatar'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -42,14 +43,10 @@ const categoryColor: Record<string, string> = {
 }
 
 export function CalendarPage() {
-  const provider = useDataProvider()
   const { user } = useAuth()
   const { activeWorkspace, activeWorkspaceId, loading: workspaceLoading } = useWorkspace()
   const { toast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [calendars, setCalendars] = useState<Calendar[]>([])
-  const [events, setEvents] = useState<Event[]>([])
-  const [loading, setLoading] = useState(true)
 
   const selectedDate = searchParams.get('date')
     ? new Date(`${searchParams.get('date')}T00:00:00`)
@@ -67,44 +64,19 @@ export function CalendarPage() {
   const rangeStartIso = rangeStart.toISOString()
   const rangeEndIso = rangeEnd.toISOString()
 
-  useEffect(() => {
-    if (!activeWorkspaceId) {
-      setLoading(false)
-      return
-    }
+  const calendarsQuery = useCalendars(activeWorkspaceId)
+  const eventsQuery = useEvents({
+    workspaceId: activeWorkspaceId,
+    rangeStart: rangeStartIso,
+    rangeEnd: rangeEndIso,
+  })
 
-    let cancelled = false
-    setLoading(true)
-    Promise.all([
-      provider.listCalendars(activeWorkspaceId),
-      provider.listEvents({
-        workspaceId: activeWorkspaceId,
-        rangeStart: rangeStartIso,
-        rangeEnd: rangeEndIso,
-      }),
-    ])
-      .then(([nextCalendars, nextEvents]) => {
-        if (cancelled) return
-        setCalendars(nextCalendars)
-        setEvents(nextEvents)
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) {
-          toast({
-            title: 'Could not load the calendar',
-            description: reason instanceof Error ? reason.message : 'Try refreshing the page.',
-            tone: 'error',
-          })
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeWorkspaceId, provider, rangeEndIso, rangeStartIso, toast])
+  const calendars = calendarsQuery.data ?? []
+  const events = eventsQuery.data ?? []
+  const loading =
+    workspaceLoading ||
+    (Boolean(activeWorkspaceId) && (calendarsQuery.isLoading || eventsQuery.isLoading))
+  const loadError = calendarsQuery.error ?? eventsQuery.error
 
   const calendarMap = useMemo(
     () => new Map(calendars.map((calendar) => [calendar.id, calendar])),
@@ -138,6 +110,27 @@ export function CalendarPage() {
     const next = new URLSearchParams(searchParams)
     next.set('view', nextView)
     setSearchParams(next, { replace: true })
+  }
+
+  if (loadError) {
+    return (
+      <EmptyState
+        title="The calendar could not load."
+        description={loadError instanceof Error ? loadError.message : 'Try again in a moment.'}
+        icon={<CalendarBlank size={18} aria-hidden />}
+        action={
+          <Button
+            variant="secondary"
+            onClick={() => {
+              void calendarsQuery.refetch()
+              void eventsQuery.refetch()
+            }}
+          >
+            Try again
+          </Button>
+        }
+      />
+    )
   }
 
   if (workspaceLoading || loading) {
