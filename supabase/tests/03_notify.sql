@@ -34,6 +34,8 @@ $$;
 
 reset role;
 
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', false);
+
 insert into public.events (
   id, workspace_id, calendar_id, created_by, title, starts_at, ends_at,
   time_zone, priority, status, visibility
@@ -118,5 +120,70 @@ begin
     when unique_violation then
       null;
   end;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', false);
+
+insert into public.events (
+  id, workspace_id, calendar_id, created_by, title, starts_at, ends_at,
+  time_zone, priority, status, visibility
+)
+values (
+  '40000000-0000-4000-8000-000000000095',
+  '10000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000002',
+  'Triggered shared event',
+  '2026-11-11T01:00:00.000Z',
+  '2026-11-11T02:00:00.000Z',
+  'Asia/Manila',
+  'normal',
+  'scheduled',
+  'calendar'
+)
+on conflict (id) do nothing;
+
+do $$
+declare
+  v_count integer;
+begin
+  select count(*) into v_count
+  from public.notifications
+  where type = 'event_created'
+    and metadata ->> 'eventId' = '40000000-0000-4000-8000-000000000095';
+
+  if v_count <> 2 then
+    raise exception 'Expected 2 event-created notifications for team recipients, found %', v_count;
+  end if;
+end;
+$$;
+
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000003', false);
+
+insert into public.event_comments (
+  id, workspace_id, event_id, author_id, body
+)
+values (
+  '70000000-0000-4000-8000-000000000095',
+  '10000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000003',
+  '@Mara Velasco please check the triggered mention.'
+)
+on conflict (id) do nothing;
+
+do $$
+declare
+  v_count integer;
+begin
+  select count(*) into v_count
+  from public.notifications
+  where type = 'comment_mention'
+    and metadata ->> 'commentId' = '70000000-0000-4000-8000-000000000095';
+
+  if v_count <> 1 then
+    raise exception 'Expected one mention notification, found %', v_count;
+  end if;
 end;
 $$;

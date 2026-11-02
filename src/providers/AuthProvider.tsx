@@ -1,10 +1,13 @@
 import type { User } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { loadProfile, signOut as signOutWithSupabase } from '../lib/auth'
 import { env } from '../lib/env'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../types/domain'
 import { demoUserProfile } from '../data/demo/demoData'
+import { clearOfflineCache } from '../lib/offlineCache'
+import { queryPersister } from '../lib/queryPersistence'
 
 type AuthContextValue = {
   user: Profile | null
@@ -17,6 +20,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<Profile | null>(() =>
     env.demoMode ? demoUserProfile() : null,
   )
@@ -107,10 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configurationError,
       signOut: async () => {
         await signOutWithSupabase()
+        queryClient.clear()
+        try {
+          await queryPersister.removeClient()
+          await clearOfflineCache()
+        } catch {
+          // Clearing local caches must never block sign-out.
+        }
         setUser(null)
       },
     }),
-    [configurationError, loading, user],
+    [configurationError, loading, queryClient, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

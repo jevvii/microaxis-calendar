@@ -94,8 +94,8 @@ describe('expandRecurrence', () => {
   it('keeps all-day dates stable across a timezone transition', () => {
     const occurrences = expandRecurrence(
       makeEvent({
-        startsAt: '2026-03-07T00:00:00.000Z',
-        endsAt: '2026-03-08T00:00:00.000Z',
+        startsAt: '2026-03-07T05:00:00.000Z',
+        endsAt: '2026-03-08T05:00:00.000Z',
         allDay: true,
         timeZone: 'America/New_York',
         recurrenceRule: 'FREQ=DAILY;COUNT=3',
@@ -108,6 +108,26 @@ describe('expandRecurrence', () => {
       '2026-03-07',
       '2026-03-08',
       '2026-03-09',
+    ])
+  })
+
+  it('keeps Asia/Manila all-day dates stable', () => {
+    const occurrences = expandRecurrence(
+      makeEvent({
+        startsAt: '2026-11-04T16:00:00.000Z',
+        endsAt: '2026-11-05T16:00:00.000Z',
+        allDay: true,
+        timeZone: 'Asia/Manila',
+        recurrenceRule: 'FREQ=DAILY;COUNT=3',
+      }),
+      '2026-11-01T00:00:00.000Z',
+      '2026-11-30T00:00:00.000Z',
+    )
+
+    expect(occurrences.map((occurrence) => occurrence.occurrenceStart)).toEqual([
+      '2026-11-05T00:00:00.000Z',
+      '2026-11-06T00:00:00.000Z',
+      '2026-11-07T00:00:00.000Z',
     ])
   })
 

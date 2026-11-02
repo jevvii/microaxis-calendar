@@ -41,6 +41,25 @@ Deno.serve(async (request) => {
     }
   }
 
+  const { data: attachments } = await admin
+    .from('event_attachments')
+    .select('storage_path')
+    .eq('uploaded_by', data.user.id)
+
+  const paths = (attachments ?? []).map(
+    (attachment: { storage_path: string }) => attachment.storage_path,
+  )
+  if (paths.length > 0) {
+    await admin.storage.from('event-attachments').remove(paths)
+    await admin.from('event_attachments').delete().eq('uploaded_by', data.user.id)
+  }
+
+  await admin
+    .from('calendars')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('created_by', data.user.id)
+    .eq('kind', 'shared')
+
   const { error: deleteError } = await admin.auth.admin.deleteUser(data.user.id)
   if (deleteError) return jsonResponse({ error: deleteError.message }, 500)
 

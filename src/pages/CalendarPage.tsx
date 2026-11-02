@@ -87,6 +87,7 @@ export function CalendarPage() {
   const [filters, setFilters] = useState<FilterState>(readFilters)
   const online = useOnlineStatus()
   const [cachedSummaries, setCachedSummaries] = useState<CachedEventSummary[]>([])
+  const cacheScope = `${user?.id ?? 'anon'}:${activeWorkspaceId ?? 'none'}`
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -158,16 +159,17 @@ export function CalendarPage() {
   }, [filters])
 
   useEffect(() => {
-    if (events.length > 0) void cacheEventSummaries(events)
-  }, [events])
+    if (!eventsQuery.isSuccess) return
+    void cacheEventSummaries(events, cacheScope, rangeStartIso, rangeEndIso)
+  }, [cacheScope, events, eventsQuery.isSuccess, rangeEndIso, rangeStartIso])
 
   useEffect(() => {
     if (online) {
       setCachedSummaries([])
       return
     }
-    void readCachedEventSummaries(rangeStartIso, rangeEndIso).then(setCachedSummaries)
-  }, [online, rangeEndIso, rangeStartIso])
+    void readCachedEventSummaries(rangeStartIso, rangeEndIso, cacheScope).then(setCachedSummaries)
+  }, [cacheScope, online, rangeEndIso, rangeStartIso])
 
   useEffect(() => {
     const eventId = searchParams.get('event')
@@ -456,6 +458,9 @@ export function CalendarPage() {
             timeZone={timeZone}
             onSelectEvent={(event: EventOccurrence) => openEvent(event)}
             onCreateAt={() => openNewEvent()}
+            onOpenDay={(date) =>
+              updateParams({ view: 'agenda', date: format(date, 'yyyy-MM-dd') })
+            }
           />
         </div>
       )}
@@ -488,6 +493,7 @@ export function CalendarPage() {
         currentUserId={user?.id ?? ''}
         canEdit={canEditSelected && online}
         canModerate={membership?.role === 'owner' || membership?.role === 'admin'}
+        online={online}
         saving={createEvent.isPending || updateEvent.isPending}
         deleting={deleteEvent.isPending}
         conflict={conflict}

@@ -1,7 +1,7 @@
 import { addDays, addMonths, addWeeks, getDate } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import type { Event, EventOccurrence } from '../types/domain'
-import { addDaysToDateKey, daysBetweenDateKeys } from './date'
+import { addDaysToDateKey, dateKeyInTimeZone, daysBetweenDateKeys } from './date'
 
 type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
@@ -176,8 +176,8 @@ function generateAllDayCandidates(
   rule: ParsedRule,
   rangeEndMs: number,
 ): Candidate[] {
-  const startKey = event.startsAt.slice(0, 10)
-  const endKey = event.endsAt.slice(0, 10)
+  const startKey = dateKeyInTimeZone(event.startsAt, event.timeZone)
+  const endKey = dateKeyInTimeZone(event.endsAt, event.timeZone)
   const durationDays = Math.max(1, daysBetweenDateKeys(startKey, endKey))
   const startDate = new Date(`${startKey}T00:00:00.000Z`)
   const startDayOfMonth = startDate.getUTCDate()

@@ -13,6 +13,7 @@ export function CalendarCanvas({
   timeZone,
   onSelectEvent,
   onCreateAt,
+  onOpenDay,
 }: {
   view: CalendarView
   date: Date
@@ -20,6 +21,7 @@ export function CalendarCanvas({
   timeZone: string
   onSelectEvent: (event: EventOccurrence) => void
   onCreateAt?: (date: Date) => void
+  onOpenDay?: (date: Date) => void
 }) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 })
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
@@ -32,6 +34,7 @@ export function CalendarCanvas({
         timeZone={timeZone}
         onSelectEvent={onSelectEvent}
         onCreateAt={onCreateAt}
+        onOpenDay={onOpenDay}
       />
     )
   }

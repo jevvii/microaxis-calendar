@@ -48,6 +48,7 @@ export function EventDrawer({
   currentUserId,
   canEdit,
   canModerate = false,
+  online = true,
   saving = false,
   deleting = false,
   conflict,
@@ -70,6 +71,7 @@ export function EventDrawer({
   currentUserId: string
   canEdit: boolean
   canModerate?: boolean
+  online?: boolean
   saving?: boolean
   deleting?: boolean
   conflict?: Event | null
@@ -271,6 +273,7 @@ export function EventDrawer({
                   canModerate={canModerate}
                   canManage={canEdit}
                   members={members}
+                  online={online}
                 />
               </div>
             ) : null}

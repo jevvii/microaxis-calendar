@@ -112,8 +112,21 @@ export function occurrencesBetween(event: EventLike, rangeStart: Date, rangeEnd:
 
   const results: Date[] = []
   let validCount = 0
+  const startMs = fromZonedTime(startZoned, event.time_zone).getTime()
+  const daysAhead = Math.max(0, (rangeStart.getTime() - startMs) / 86_400_000)
+  let iterationStart = 0
 
-  for (let iteration = 0; iteration < 5_000; iteration += 1) {
+  if (!rule.count) {
+    if (rule.frequency === 'DAILY') {
+      iterationStart = Math.max(0, Math.floor(daysAhead / rule.interval) - 1)
+    } else if (rule.frequency === 'WEEKLY') {
+      iterationStart = Math.max(0, Math.floor(daysAhead / (7 * rule.interval)) - 1)
+    } else {
+      iterationStart = Math.max(0, Math.floor(daysAhead / (30 * rule.interval)) - 1)
+    }
+  }
+
+  for (let iteration = iterationStart; iteration < iterationStart + 5_000; iteration += 1) {
     const localCandidates: Date[] = []
     if (rule.frequency === 'DAILY') {
       localCandidates.push(addDays(startZoned, iteration * rule.interval))

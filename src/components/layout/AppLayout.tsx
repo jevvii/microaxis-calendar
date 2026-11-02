@@ -6,7 +6,6 @@ import { useNotifications } from '../../hooks/useNotifications'
 import { useRealtimeWorkspace } from '../../hooks/useRealtime'
 import { useAuth } from '../../providers/AuthProvider'
 import { useWorkspace } from '../../providers/WorkspaceProvider'
-import { useToast } from '../../providers/ToastProvider'
 import type { Calendar } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
 import { IconButton } from '../ui/IconButton'
@@ -30,7 +29,6 @@ export function AppLayout() {
     teams,
     loading,
   } = useWorkspace()
-  const { toast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -151,13 +149,14 @@ export function AppLayout() {
               <IconButton
                 label="Search"
                 size="sm"
-                onClick={() =>
-                  toast({
-                    title: 'Search is not wired yet',
-                    description: 'The next pass adds command search across events and people.',
-                    tone: 'info',
-                  })
-                }
+                onClick={() => {
+                  navigate('/app/calendar')
+                  window.setTimeout(() => {
+                    document
+                      .querySelector<HTMLInputElement>('input[aria-label="Search events"]')
+                      ?.focus()
+                  }, 60)
+                }}
               >
                 <MagnifyingGlass size={15} aria-hidden />
               </IconButton>

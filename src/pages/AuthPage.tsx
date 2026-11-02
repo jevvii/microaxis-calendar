@@ -140,16 +140,20 @@ export function AuthPage() {
               className="mt-6 flex w-full items-center justify-between rounded-control border border-line bg-surface px-3.5 py-3 text-left text-sm transition-colors hover:border-line-strong"
             >
               <span>
-                <span className="block font-medium text-ink">Open the demo workspace</span>
-                <span className="mt-0.5 block text-xs text-ink-3">Mara Velasco · MicroAxis Studio</span>
+                <span className="block font-medium text-ink">
+                  {isDemo ? 'Open the demo workspace' : 'Open the calendar'}
+                </span>
+                <span className="mt-0.5 block text-xs text-ink-3">
+                  {user.fullName} · {isDemo ? 'MicroAxis Studio' : 'Signed in'}
+                </span>
               </span>
               <ArrowRight size={16} className="text-ink-3" aria-hidden />
             </button>
           ) : null}
 
           <p className="mt-6 text-xs leading-5 text-ink-3">
-            By continuing you agree to the workspace invitation and the studio’s acceptable use
-            policy. <Link to="/offline" className="underline underline-offset-2">Offline help</Link>
+            By continuing you agree to the workspace’s acceptable use policy.{' '}
+            <Link to="/offline" className="underline underline-offset-2">Offline help</Link>
           </p>
         </div>
       </section>

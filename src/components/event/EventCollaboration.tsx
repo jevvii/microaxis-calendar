@@ -38,12 +38,14 @@ export function EventCollaboration({
   canModerate,
   canManage,
   members,
+  online = true,
 }: {
   event: Event
   currentUserId: string
   canModerate: boolean
   canManage: boolean
   members: WorkspaceMembership[]
+  online?: boolean
 }) {
   const provider = useDataProvider()
   const { toast } = useToast()
@@ -108,6 +110,7 @@ export function EventCollaboration({
         <div className="mt-4">
           <CommentComposer
             members={members}
+            disabled={!online}
             submitting={createComment.isPending}
             onSubmit={(body) =>
               createComment.mutate(body, {
@@ -132,6 +135,7 @@ export function EventCollaboration({
         <div className="mt-3 grid gap-3">
           <AttachmentUploader
             uploading={uploadAttachment.isPending}
+            disabled={!online}
             onUpload={(file) =>
               uploadAttachment.mutate(
                 { workspaceId: event.workspaceId, eventId: event.id, file },
@@ -148,7 +152,7 @@ export function EventCollaboration({
           />
           <AttachmentList
             attachments={attachments}
-            canManage={canManage}
+            canManage={canManage && online}
             onOpen={openAttachment}
             onDelete={(attachmentId) => deleteAttachment.mutate(attachmentId)}
           />

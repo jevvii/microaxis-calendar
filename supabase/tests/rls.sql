@@ -153,6 +153,13 @@ begin
 
   select title into v_title
   from public.calendar_visible_events
+  where id = '40000000-0000-4000-8000-000000000006';
+  if v_title is distinct from 'Busy' then
+    raise exception 'A private event should appear as a busy block to another member, found %', coalesce(v_title, 'no row');
+  end if;
+
+  select title into v_title
+  from public.calendar_visible_events
   where id = '40000000-0000-4000-8000-000000000014';
   if v_title is distinct from 'Busy' then
     raise exception 'Bea should see a busy block, found %', coalesce(v_title, 'no row');
@@ -371,3 +378,78 @@ begin
   end;
 end;
 $$;
+
+-- Offboarding must revoke team, share, and calendar access.
+insert into public.workspaces (id, name, slug, created_by)
+values ('10000000-0000-4000-8000-000000000096', 'Offboarding Test', 'offboarding-test', 'a0000000-0000-4000-8000-000000000001');
+
+insert into public.workspace_members (workspace_id, user_id, role)
+values
+  ('10000000-0000-4000-8000-000000000096', 'a0000000-0000-4000-8000-000000000001', 'owner'),
+  ('10000000-0000-4000-8000-000000000096', 'a0000000-0000-4000-8000-000000000003', 'member');
+
+insert into public.teams (id, workspace_id, name, color)
+values ('20000000-0000-4000-8000-000000000096', '10000000-0000-4000-8000-000000000096', 'Offboarding Team', '#2F5D78');
+
+insert into public.team_members (team_id, user_id, role)
+values ('20000000-0000-4000-8000-000000000096', 'a0000000-0000-4000-8000-000000000003', 'member');
+
+insert into public.calendars (id, workspace_id, team_id, name, kind, color, visibility, created_by)
+values ('30000000-0000-4000-8000-000000000096', '10000000-0000-4000-8000-000000000096', '20000000-0000-4000-8000-000000000096', 'Offboarding Calendar', 'team', '#2F5D78', 'team', 'a0000000-0000-4000-8000-000000000001');
+
+insert into public.calendar_shares (calendar_id, subject_type, subject_id, role, created_by)
+values ('30000000-0000-4000-8000-000000000096', 'user', 'a0000000-0000-4000-8000-000000000003', 'viewer', 'a0000000-0000-4000-8000-000000000001');
+
+delete from public.workspace_members
+where workspace_id = '10000000-0000-4000-8000-000000000096'
+  and user_id = 'a0000000-0000-4000-8000-000000000003';
+
+do $$
+declare
+  v_role public.calendar_role;
+  v_team integer;
+  v_share integer;
+begin
+  select public.calendar_role('30000000-0000-4000-8000-000000000096', 'a0000000-0000-4000-8000-000000000003') into v_role;
+  if v_role is not null then
+    raise exception 'Removed member still has calendar role %', v_role;
+  end if;
+
+  select count(*) into v_team from public.team_members where team_id = '20000000-0000-4000-8000-000000000096' and user_id = 'a0000000-0000-4000-8000-000000000003';
+  select count(*) into v_share from public.calendar_shares where calendar_id = '30000000-0000-4000-8000-000000000096' and subject_id = 'a0000000-0000-4000-8000-000000000003';
+
+  if v_team <> 0 or v_share <> 0 then
+    raise exception 'Removed member retained team/share rows (% / %)', v_team, v_share;
+  end if;
+end;
+$$;
+
+-- Soft deletion is an access boundary, not only a list filter.
+update public.workspaces
+set deleted_at = now()
+where id = '10000000-0000-4000-8000-000000000096';
+
+do $$
+declare
+  v_role public.calendar_role;
+begin
+  select public.calendar_role('30000000-0000-4000-8000-000000000096', 'a0000000-0000-4000-8000-000000000001') into v_role;
+  if v_role is not null then
+    raise exception 'Soft-deleted workspace still grants calendar role %', v_role;
+  end if;
+end;
+$$;
+
+set role anon;
+do $$
+begin
+  begin
+    perform public.calendar_role('30000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001');
+    raise exception 'Anonymous callers must not execute security-definer helpers';
+  exception
+    when insufficient_privilege then
+      null;
+  end;
+end;
+$$;
+reset role;

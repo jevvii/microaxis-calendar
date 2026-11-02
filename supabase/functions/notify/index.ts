@@ -120,21 +120,36 @@ async function processReminders(admin: ReturnType<typeof createAdminClient>) {
   const rangeStart = new Date(now.getTime() - 60_000)
   const rangeEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000)
 
-  const { data: events, error } = await admin
+  const eventSelect =
+    'id, workspace_id, calendar_id, created_by, title, location, starts_at, ends_at, all_day, time_zone, recurrence_rule, recurrence_until, recurrence_exceptions, status, visibility'
+
+  const { data: nonRecurring, error: nonRecurringError } = await admin
     .from('events')
-    .select(
-      'id, workspace_id, calendar_id, created_by, title, location, starts_at, ends_at, all_day, time_zone, recurrence_rule, recurrence_until, recurrence_exceptions, status, visibility',
-    )
+    .select(eventSelect)
     .is('deleted_at', null)
     .neq('status', 'cancelled')
+    .is('recurrence_rule', null)
+    .gt('ends_at', rangeStart.toISOString())
     .lt('starts_at', rangeEnd.toISOString())
     .returns<EventRow[]>()
 
-  if (error) throw new Error(error.message)
+  const { data: recurring, error: recurringError } = await admin
+    .from('events')
+    .select(eventSelect)
+    .is('deleted_at', null)
+    .neq('status', 'cancelled')
+    .not('recurrence_rule', 'is', null)
+    .lt('starts_at', rangeEnd.toISOString())
+    .or(`recurrence_until.is.null,recurrence_until.gte.${rangeStart.toISOString()}`)
+    .returns<EventRow[]>()
 
+  if (nonRecurringError) throw new Error(nonRecurringError.message)
+  if (recurringError) throw new Error(recurringError.message)
+
+  const events = [...(nonRecurring ?? []), ...(recurring ?? [])]
   let created = 0
 
-  for (const event of events ?? []) {
+  for (const event of events) {
     const occurrences = occurrencesBetween(
       {
         starts_at: event.starts_at,
@@ -249,7 +264,22 @@ async function processReminders(admin: ReturnType<typeof createAdminClient>) {
 }
 
 async function processOutbox(admin: ReturnType<typeof createAdminClient>) {
+  await admin
+    .from('notification_outbox')
+    .update({ status: 'failed', error: 'Recovered stale processing row' })
+    .eq('status', 'processing')
+    .lt('scheduled_at', new Date(Date.now() - 5 * 60_000).toISOString())
+
   const now = new Date().toISOString()
+  const dayStart = new Date()
+  dayStart.setHours(0, 0, 0, 0)
+  const { count: sentEmailsToday } = await admin
+    .from('notification_outbox')
+    .select('id', { count: 'exact', head: true })
+    .eq('channel', 'email')
+    .eq('status', 'sent')
+    .gte('sent_at', dayStart.toISOString())
+  let emailBudget = Math.max(0, 300 - (sentEmailsToday ?? 0))
   const { data: rows, error } = await admin
     .from('notification_outbox')
     .select(
@@ -268,14 +298,72 @@ async function processOutbox(admin: ReturnType<typeof createAdminClient>) {
   let failed = 0
 
   for (const row of rows ?? []) {
-    await admin
+    const { data: claimed } = await admin
       .from('notification_outbox')
       .update({ status: 'processing', attempts: row.attempts + 1 })
       .eq('id', row.id)
+      .in('status', ['pending', 'failed'])
+      .select('id')
+      .maybeSingle<{ id: string }>()
+
+    if (!claimed) continue
 
     try {
       const notification = row.notifications
       if (!notification) throw new Error('Notification was not found')
+
+      const { data: profile } = await admin
+        .from('profiles')
+        .select('timezone, notification_preferences')
+        .eq('id', notification.user_id)
+        .single<{
+          timezone: string
+          notification_preferences: ProfileRow['notification_preferences']
+        }>()
+
+      if (!profile) throw new Error('Recipient profile is unavailable')
+
+      if (
+        row.channel === 'email' &&
+        profile.notification_preferences?.email === false
+      ) {
+        await admin
+          .from('notification_outbox')
+          .update({ status: 'skipped', error: 'Email disabled by preference' })
+          .eq('id', row.id)
+        continue
+      }
+
+      if (
+        row.channel === 'push' &&
+        profile.notification_preferences?.push !== true
+      ) {
+        await admin
+          .from('notification_outbox')
+          .update({ status: 'skipped', error: 'Push disabled by preference' })
+          .eq('id', row.id)
+        continue
+      }
+
+      if (isQuietNow(new Date(), profile.timezone, profile.notification_preferences)) {
+        await admin
+          .from('notification_outbox')
+          .update({
+            status: 'pending',
+            scheduled_at: nextMorning(new Date(), profile.timezone).toISOString(),
+            error: null,
+          })
+          .eq('id', row.id)
+        continue
+      }
+
+      if (row.channel === 'email' && emailBudget <= 0) {
+        await admin
+          .from('notification_outbox')
+          .update({ status: 'skipped', error: 'Daily Brevo ceiling reached' })
+          .eq('id', row.id)
+        continue
+      }
 
       if (row.channel === 'email') {
         const { data: userData, error: userError } = await admin.auth.admin.getUserById(
@@ -299,6 +387,7 @@ async function processOutbox(admin: ReturnType<typeof createAdminClient>) {
           htmlContent: message.htmlContent,
           textContent: message.textContent,
         })
+        emailBudget -= 1
       } else if (row.channel === 'push') {
         const { data: subscriptions, error: subscriptionError } = await admin
           .from('push_subscriptions')
@@ -347,11 +436,13 @@ async function processOutbox(admin: ReturnType<typeof createAdminClient>) {
       sent += 1
     } catch (reason) {
       failed += 1
+      const message = reason instanceof Error ? reason.message : 'delivery failed'
+      const permanent = /\((4\d\d)\)/.test(message)
       await admin
         .from('notification_outbox')
         .update({
-          status: 'failed',
-          error: reason instanceof Error ? reason.message : 'delivery failed',
+          status: permanent ? 'skipped' : 'failed',
+          error: message,
         })
         .eq('id', row.id)
     }
@@ -378,11 +469,19 @@ Deno.serve(async (request) => {
 
   try {
     const admin = createAdminClient()
-    const result =
-      payload.mode === 'outbox'
-        ? await processOutbox(admin)
-        : await processReminders(admin)
-    return jsonResponse({ ok: true, ...result })
+    const { data: locked, error: lockError } = await admin.rpc('notify_lock')
+    if (lockError) throw new Error(lockError.message)
+    if (!locked) return jsonResponse({ ok: true, skipped: 'Another notify run is active' }, 202)
+
+    try {
+      const result =
+        payload.mode === 'outbox'
+          ? await processOutbox(admin)
+          : await processReminders(admin)
+      return jsonResponse({ ok: true, ...result })
+    } finally {
+      await admin.rpc('notify_unlock')
+    }
   } catch (reason) {
     return jsonResponse(
       { error: reason instanceof Error ? reason.message : 'Notification worker failed' },

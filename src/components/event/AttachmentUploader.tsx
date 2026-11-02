@@ -6,9 +6,11 @@ import { Button } from '../ui/Button'
 export function AttachmentUploader({
   onUpload,
   uploading = false,
+  disabled = false,
 }: {
   onUpload: (file: File) => void
   uploading?: boolean
+  disabled?: boolean
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +44,7 @@ export function AttachmentUploader({
         size="sm"
         loading={uploading}
         leadingIcon={<Paperclip size={14} aria-hidden />}
+        disabled={disabled}
         onClick={() => inputRef.current?.click()}
       >
         Attach file

@@ -8,10 +8,12 @@ export function CommentComposer({
   members,
   onSubmit,
   submitting = false,
+  disabled = false,
 }: {
   members: WorkspaceMembership[]
   onSubmit: (body: string) => void
   submitting?: boolean
+  disabled?: boolean
 }) {
   const [value, setValue] = useState('')
 
@@ -52,6 +54,7 @@ export function CommentComposer({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={onKeyDown}
+        disabled={disabled}
         placeholder="Add context or @mention a teammate."
         rows={3}
       />
@@ -78,7 +81,7 @@ export function CommentComposer({
           variant="secondary"
           size="sm"
           loading={submitting}
-          disabled={!value.trim()}
+          disabled={disabled || !value.trim()}
           leadingIcon={<PaperPlaneTilt size={13} aria-hidden />}
         >
           Comment

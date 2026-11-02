@@ -9,12 +9,14 @@ export function MonthView({
   timeZone,
   onSelectEvent,
   onCreateAt,
+  onOpenDay,
 }: {
   date: Date
   events: EventOccurrence[]
   timeZone: string
   onSelectEvent: (event: EventOccurrence) => void
   onCreateAt?: (date: Date) => void
+  onOpenDay?: (date: Date) => void
 }) {
   const monthStart = startOfMonth(date)
   const monthEnd = endOfMonth(date)
@@ -84,6 +86,7 @@ export function MonthView({
                 {dayEvents.length > 3 ? (
                   <button
                     type="button"
+                    onClick={() => onOpenDay?.(day)}
                     className="px-1 text-left font-mono text-[9px] text-ink-3 hover:text-ink"
                   >
                     +{dayEvents.length - 3} more

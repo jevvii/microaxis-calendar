@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.118.0'
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { escapeHtml } from '../_shared/templates.ts'
 
 type InviteRow = {
   id: string
@@ -102,7 +103,9 @@ Deno.serve(async (request) => {
   }
 
   const inviteLink = `${appUrl}/invite/${invite.token}`
-  const name = workspaceName(invite)
+  const rawName = workspaceName(invite)
+  const name = escapeHtml(rawName)
+  const safeLink = escapeHtml(inviteLink)
 
   const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
@@ -121,12 +124,12 @@ Deno.serve(async (request) => {
           <h1 style="font-size: 24px; letter-spacing: -0.03em;">You have been invited to ${name}.</h1>
           <p>Use the link below to join the workspace. It expires in seven days.</p>
           <p style="margin: 24px 0;">
-            <a href="${inviteLink}" style="background: #141411; color: #ffffff; padding: 12px 18px; border-radius: 6px; text-decoration: none;">Accept invitation</a>
+            <a href="${safeLink}" style="background: #141411; color: #ffffff; padding: 12px 18px; border-radius: 6px; text-decoration: none;">Accept invitation</a>
           </p>
-          <p style="font-size: 12px; color: #76766c;">If the button does not work, open ${inviteLink}</p>
+          <p style="font-size: 12px; color: #76766c;">If the button does not work, open ${safeLink}</p>
         </div>
       `,
-      textContent: `You have been invited to ${name} on MicroAxis Calendar.\n\nAccept the invitation: ${inviteLink}\n\nThis link expires in seven days.`,
+      textContent: `You have been invited to ${rawName} on MicroAxis Calendar.\n\nAccept the invitation: ${inviteLink}\n\nThis link expires in seven days.`,
     }),
   })
 

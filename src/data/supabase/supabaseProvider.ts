@@ -938,18 +938,10 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async setRsvp(eventId: string, status) {
-      const userId = await currentUserId()
-      const { error } = await client()
-        .from('event_participants')
-        .upsert(
-          {
-            event_id: eventId,
-            user_id: userId,
-            status,
-            responded_at: new Date().toISOString(),
-          },
-          { onConflict: 'event_id,user_id' },
-        )
+      const { error } = await client().rpc('set_event_rsvp', {
+        p_event_id: eventId,
+        p_status: status,
+      })
       throwIf(error)
     },
   }

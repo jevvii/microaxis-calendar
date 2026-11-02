@@ -1,3 +1,5 @@
+import { formatInTimeZone } from 'npm:date-fns-tz@3.2.0'
+
 const CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created'
 const USERINFO_SCOPE = 'https://www.googleapis.com/auth/userinfo.email'
 
@@ -140,10 +142,10 @@ export function googleEventBody(event: MicroaxisGoogleEvent, calendarKind: strin
     location: event.location ?? undefined,
     status: event.status === 'cancelled' || event.deleted_at ? 'cancelled' : 'confirmed',
     start: isAllDay
-      ? { date: event.starts_at.slice(0, 10) }
+      ? { date: formatInTimeZone(new Date(event.starts_at), event.time_zone, 'yyyy-MM-dd') }
       : { dateTime: event.starts_at, timeZone: event.time_zone },
     end: isAllDay
-      ? { date: event.ends_at.slice(0, 10) }
+      ? { date: formatInTimeZone(new Date(event.ends_at), event.time_zone, 'yyyy-MM-dd') }
       : { dateTime: event.ends_at, timeZone: event.time_zone },
     recurrence,
     extendedProperties: {

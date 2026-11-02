@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDataProvider } from '../data/provider'
 import type { Team, Workspace, WorkspaceMembership } from '../types/domain'
 import { useAuth } from './AuthProvider'
@@ -29,6 +30,7 @@ type WorkspaceContextValue = {
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const { user } = useAuth()
   const provider = useDataProvider()
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
@@ -115,10 +117,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [activeWorkspaceId, provider, reloadKey, user])
 
-  const setActiveWorkspaceId = useCallback((workspaceId: string) => {
-    setActiveWorkspaceIdState(workspaceId)
-    window.localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspaceId)
-  }, [])
+  const setActiveWorkspaceId = useCallback(
+    (workspaceId: string) => {
+      queryClient.clear()
+      setActiveWorkspaceIdState(workspaceId)
+      window.localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspaceId)
+    },
+    [queryClient],
+  )
 
   const refresh = useCallback(() => setReloadKey((key) => key + 1), [])
 
