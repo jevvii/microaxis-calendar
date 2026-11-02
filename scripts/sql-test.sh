@@ -38,4 +38,6 @@ psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/s
 echo "Running workspace RPC assertions"
 psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/02_workspace_rpc.sql"
 
-echo "SQL schema, RLS, and workspace RPC tests passed."
+psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/03_notify.sql"
+
+echo "SQL schema, RLS, workspace RPC, and notification tests passed."
