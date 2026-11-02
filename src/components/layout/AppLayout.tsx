@@ -1,12 +1,5 @@
-import {
-  Bell,
-  CaretLeft,
-  CaretRight,
-  MagnifyingGlass,
-  Plus,
-} from '@phosphor-icons/react'
-import { addDays, format, getISOWeek, startOfWeek } from 'date-fns'
-import { useEffect, useMemo, useState } from 'react'
+import { Bell, MagnifyingGlass, Plus } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useDataProvider } from '../../data/provider'
 import { useRealtimeWorkspace } from '../../hooks/useRealtime'
@@ -17,18 +10,11 @@ import type { Calendar, Notification } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
-import { SegmentedControl } from '../ui/SegmentedControl'
 import { AppShell } from './AppShell'
 import { MobileNav } from './MobileNav'
 import { Sidebar } from './Sidebar'
 import { ThemeToggle } from './ThemeToggle'
 import { Topbar } from './Topbar'
-
-type View = 'week' | 'month' | 'agenda'
-
-function viewFrom(value: string | null): View {
-  return value === 'month' || value === 'agenda' ? value : 'week'
-}
 
 export function AppLayout() {
   const provider = useDataProvider()
@@ -71,20 +57,7 @@ export function AppLayout() {
     }
   }, [activeWorkspaceId, provider])
 
-  const dateParam = searchParams.get('date')
-  const selectedDate = dateParam ? new Date(`${dateParam}T00:00:00`) : new Date()
-  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
-  const weekEnd = addDays(weekStart, 6)
-  const view = viewFrom(searchParams.get('view'))
   const unreadCount = notifications.filter((notification) => !notification.readAt).length
-
-  const dateLabel = useMemo(() => {
-    const sameMonth = weekStart.getMonth() === weekEnd.getMonth()
-    if (sameMonth) {
-      return `${format(weekStart, 'MMM d')}–${format(weekEnd, 'd, yyyy')}`
-    }
-    return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`
-  }, [weekEnd, weekStart])
 
   function updateParams(patch: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams)
@@ -93,10 +66,6 @@ export function AppLayout() {
       else next.set(key, value)
     }
     setSearchParams(next, { replace: true })
-  }
-
-  function moveWeek(direction: -1 | 1) {
-    updateParams({ date: format(addDays(weekStart, direction * 7), 'yyyy-MM-dd') })
   }
 
   const activeCalendarId = searchParams.get('calendar')
@@ -160,38 +129,14 @@ export function AppLayout() {
       topbar={
         <Topbar
           left={
-            <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-0.5 sm:flex">
-                <IconButton label="Previous week" size="sm" onClick={() => moveWeek(-1)}>
-                  <CaretLeft size={15} weight="bold" aria-hidden />
-                </IconButton>
-                <IconButton label="Next week" size="sm" onClick={() => moveWeek(1)}>
-                  <CaretRight size={15} weight="bold" aria-hidden />
-                </IconButton>
-              </div>
-              <button
-                type="button"
-                onClick={() => updateParams({ date: null })}
-                className="min-w-0 rounded-control px-1 py-1 text-left hover:bg-surface-3"
-              >
-                <p className="truncate text-[13px] font-semibold tracking-[-0.01em]">{dateLabel}</p>
-                <p className="hidden font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3 sm:block">
-                  Week {getISOWeek(weekStart)} · {user?.timezone ?? 'Asia/Manila'}
-                </p>
-              </button>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold tracking-[-0.01em]">
+                {activeWorkspace?.name ?? 'MicroAxis Calendar'}
+              </p>
+              <p className="hidden font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3 sm:block">
+                Calendar · {user?.timezone ?? 'Asia/Manila'}
+              </p>
             </div>
-          }
-          center={
-            <SegmentedControl
-              ariaLabel="Calendar view"
-              value={view}
-              onChange={(nextView) => updateParams({ view: nextView })}
-              options={[
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'agenda', label: 'Agenda' },
-              ]}
-            />
           }
           right={
             <>
