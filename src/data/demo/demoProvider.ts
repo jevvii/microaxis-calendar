@@ -798,6 +798,9 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         teamRole: teamRole(calendar.teamId),
       })
       if (role !== 'manager') throw new Error('Only calendar managers can share this calendar')
+      if (calendar.kind === 'personal' && input.role === 'editor') {
+        throw new Error('Personal calendars can only be shared as viewer or participant')
+      }
 
       const existing = (calendar.shares ?? []).find(
         (share) =>

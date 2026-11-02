@@ -60,6 +60,25 @@ describe('calendarRole', () => {
     expect(hasCalendarAccess(otherCalendar, 'u-owner', noMemberships)).toBe(false)
   })
 
+  it('downgrades an editor share on a personal calendar to viewer', () => {
+    const shared = {
+      ...baseCalendar,
+      shares: [
+        {
+          id: 'share-editor',
+          calendarId: 'cal-1',
+          subjectType: 'user' as const,
+          subjectId: 'u-editor',
+          role: 'editor' as const,
+          hideDetails: false,
+        },
+      ],
+    }
+
+    expect(calendarRole(shared, 'u-editor', noMemberships)).toBe('viewer')
+    expect(canEditEvent(baseEvent, 'viewer', null, null, 'u-editor')).toBe(false)
+  })
+
   it('honors an explicit personal share as viewer', () => {
     const shared = {
       ...baseCalendar,

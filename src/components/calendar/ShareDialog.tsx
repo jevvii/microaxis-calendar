@@ -146,7 +146,9 @@ export function ShareDialog({
           >
             <option value="viewer">Viewer · details, RSVP, comments</option>
             <option value="participant">Participant · can add events</option>
-            <option value="editor">Editor · can edit shared events</option>
+            {calendar.kind !== 'personal' ? (
+              <option value="editor">Editor · can edit shared events</option>
+            ) : null}
           </Select>
         </Field>
 

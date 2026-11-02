@@ -61,15 +61,18 @@ export function calendarRole(
   }
 
   for (const share of calendar.shares ?? []) {
+    const shareRole =
+      calendar.kind === 'personal' && share.role === 'editor' ? 'viewer' : share.role
+
     if (share.subjectType === 'user' && share.subjectId === userId) {
-      roles.push(share.role)
+      roles.push(shareRole)
     }
 
     if (
       share.subjectType === 'team' &&
       memberships.teamIds?.includes(share.subjectId)
     ) {
-      roles.push(share.role)
+      roles.push(shareRole)
     }
 
     if (
@@ -77,7 +80,7 @@ export function calendarRole(
       share.subjectId === calendar.workspaceId &&
       memberships.workspaceRole
     ) {
-      roles.push(share.role)
+      roles.push(shareRole)
     }
   }
 
