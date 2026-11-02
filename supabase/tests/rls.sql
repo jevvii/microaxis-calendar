@@ -160,6 +160,29 @@ begin
 end;
 $$;
 
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000004', false);
+
+do $$
+begin
+  begin
+    insert into public.calendar_export_preferences (user_id, calendar_id, enabled)
+    values (
+      'a0000000-0000-4000-8000-000000000004',
+      '30000000-0000-4000-8000-000000000001',
+      true
+    );
+    raise exception 'A busy-only share must not be exportable to Google';
+  exception
+    when insufficient_privilege then
+      null;
+    when others then
+      if sqlerrm not like '%row-level security%' then
+        raise;
+      end if;
+  end;
+end;
+$$;
+
 select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000003', false);
 
 do $$

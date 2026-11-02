@@ -98,9 +98,17 @@ Deno.serve(async (request) => {
 
       if (preferenceError) throw new Error(preferenceError.message)
 
-      const calendarIds = (preferences ?? []).map(
+      const preferredCalendarIds = (preferences ?? []).map(
         (preference: { calendar_id: string }) => preference.calendar_id,
       )
+      const calendarIds: string[] = []
+      for (const calendarId of preferredCalendarIds) {
+        const { data: fullDetails } = await admin.rpc('calendar_has_full_details', {
+          p_calendar_id: calendarId,
+          p_user_id: connection.user_id,
+        })
+        if (fullDetails === true) calendarIds.push(calendarId)
+      }
       if (calendarIds.length === 0) continue
 
       const { data: calendarRows } = await admin
