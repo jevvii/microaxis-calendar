@@ -49,3 +49,10 @@ test('has no serious or critical WCAG violations on the calendar', async ({ page
   )
   expect(serious).toEqual([])
 })
+
+test('opens account settings from the bottom-left gear', async ({ page }) => {
+  await page.goto('/app/calendar')
+  await page.getByRole('button', { name: 'Account settings' }).click()
+  await expect(page).toHaveURL(/\/app\/settings$/)
+  await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible()
+})

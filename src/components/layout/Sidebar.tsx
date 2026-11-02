@@ -37,6 +37,7 @@ type SidebarProps = {
   onSelectCalendar?: (calendarId: string) => void
   onNewEvent?: () => void
   onOpenWorkspaceMenu?: () => void
+  onOpenSettings?: () => void
 }
 
 export function Sidebar({
@@ -50,6 +51,7 @@ export function Sidebar({
   onSelectCalendar,
   onNewEvent,
   onOpenWorkspaceMenu,
+  onOpenSettings,
 }: SidebarProps) {
   return (
     <div className="flex h-full flex-col bg-surface-2">
@@ -198,7 +200,7 @@ export function Sidebar({
           <p className="truncate text-[12px] font-medium text-ink">{userName}</p>
           <p className="truncate text-[11px] text-ink-3">Signed in</p>
         </div>
-        <IconButton label="Account settings" size="sm">
+        <IconButton label="Account settings" size="sm" onClick={onOpenSettings}>
           <GearSix size={15} aria-hidden />
         </IconButton>
       </div>

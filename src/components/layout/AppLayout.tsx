@@ -130,6 +130,7 @@ export function AppLayout() {
           }}
           onNewEvent={() => navigate('/app/calendar?new=1')}
           onOpenWorkspaceMenu={() => setWorkspaceMenuOpen(true)}
+          onOpenSettings={() => navigate('/app/settings')}
         />
       }
       topbar={
