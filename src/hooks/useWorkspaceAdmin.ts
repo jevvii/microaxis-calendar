@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDataProvider } from '../data/provider'
+import {
+  cacheCalendar,
+  cacheCalendarShare,
+  cacheDeletedCalendar,
+  cacheDeletedCalendarShare,
+} from '../lib/queryCache'
 import type {
   CalendarAdminInput,
   CalendarShareInput,
@@ -15,6 +21,12 @@ export function useWorkspaceAdmin(workspaceId: string | null | undefined) {
 
   function invalidate() {
     refresh()
+    void queryClient.invalidateQueries({ queryKey: ['calendars'] })
+    void queryClient.invalidateQueries({ queryKey: ['events'] })
+    void queryClient.invalidateQueries({ queryKey: ['audit', workspaceId] })
+  }
+
+  function invalidateCalendars() {
     void queryClient.invalidateQueries({ queryKey: ['calendars'] })
     void queryClient.invalidateQueries({ queryKey: ['events'] })
     void queryClient.invalidateQueries({ queryKey: ['audit', workspaceId] })
@@ -50,7 +62,10 @@ export function useWorkspaceAdmin(workspaceId: string | null | undefined) {
 
   const createCalendar = useMutation({
     mutationFn: (input: CalendarAdminInput) => provider.createCalendar(input),
-    onSuccess: invalidate,
+    onSuccess: (calendar) => {
+      cacheCalendar(queryClient, calendar)
+      invalidateCalendars()
+    },
   })
 
   const transferOwnership = useMutation({
@@ -100,22 +115,34 @@ export function useCalendarAdmin(workspaceId: string | null | undefined) {
       calendarId: string
       input: { name: string; description: string; color: string }
     }) => provider.updateCalendar(variables.calendarId, variables.input),
-    onSuccess: invalidate,
+    onSuccess: (calendar) => {
+      cacheCalendar(queryClient, calendar)
+      invalidate()
+    },
   })
 
   const deleteCalendar = useMutation({
     mutationFn: (calendarId: string) => provider.deleteCalendar(calendarId),
-    onSuccess: invalidate,
+    onSuccess: (_result, calendarId) => {
+      cacheDeletedCalendar(queryClient, workspaceId, calendarId)
+      invalidate()
+    },
   })
 
   const upsertShare = useMutation({
     mutationFn: (input: CalendarShareInput) => provider.upsertCalendarShare(input),
-    onSuccess: invalidate,
+    onSuccess: (share) => {
+      cacheCalendarShare(queryClient, workspaceId, share)
+      invalidate()
+    },
   })
 
   const deleteShare = useMutation({
     mutationFn: (shareId: string) => provider.deleteCalendarShare(shareId),
-    onSuccess: invalidate,
+    onSuccess: (_result, shareId) => {
+      cacheDeletedCalendarShare(queryClient, workspaceId, shareId)
+      invalidate()
+    },
   })
 
   return {

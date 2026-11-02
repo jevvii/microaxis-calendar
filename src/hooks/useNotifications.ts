@@ -1,30 +1,52 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDataProvider } from '../data/provider'
 import { normalizeNotificationPreferences } from '../lib/notificationPreferences'
-import type { NotificationPreferences } from '../types/domain'
+import { cacheNotificationsRead } from '../lib/queryCache'
+import type { Notification, NotificationPreferences } from '../types/domain'
 
 export function useNotifications(workspaceId: string | null | undefined) {
   const provider = useDataProvider()
   const queryClient = useQueryClient()
+  const notificationKey = ['notifications', workspaceId]
 
   const query = useQuery({
-    queryKey: ['notifications', workspaceId],
+    queryKey: notificationKey,
     queryFn: () => provider.listNotifications(workspaceId as string),
     enabled: Boolean(workspaceId),
   })
 
+  function snapshot() {
+    return queryClient.getQueryData<Notification[]>(notificationKey)
+  }
+
+  function restore(previous: Notification[] | undefined) {
+    if (previous) queryClient.setQueryData(notificationKey, previous)
+  }
+
   const markRead = useMutation({
     mutationFn: (notificationId: string) => provider.markNotificationRead(notificationId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications', workspaceId] })
+    onMutate: (notificationId) => {
+      const previous = snapshot()
+      cacheNotificationsRead(queryClient, workspaceId, [notificationId])
+      return { previous }
+    },
+    onError: (_error, _notificationId, context) => restore(context?.previous),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 
   const markAll = useMutation({
     mutationFn: (notificationIds: string[]) =>
       Promise.all(notificationIds.map((id) => provider.markNotificationRead(id))),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications', workspaceId] })
+    onMutate: (notificationIds) => {
+      const previous = snapshot()
+      cacheNotificationsRead(queryClient, workspaceId, notificationIds)
+      return { previous }
+    },
+    onError: (_error, _notificationIds, context) => restore(context?.previous),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
     },
   })
 

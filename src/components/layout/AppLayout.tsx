@@ -1,12 +1,11 @@
 import { Bell, MagnifyingGlass } from '@phosphor-icons/react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { useDataProvider } from '../../data/provider'
+import { useCalendars } from '../../hooks/useCalendars'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useRealtimeWorkspace } from '../../hooks/useRealtime'
 import { useAuth } from '../../providers/AuthProvider'
 import { useWorkspace } from '../../providers/WorkspaceProvider'
-import type { Calendar } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
 import { IconButton } from '../ui/IconButton'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
@@ -19,7 +18,6 @@ import { ThemeToggle } from './ThemeToggle'
 import { Topbar } from './Topbar'
 
 export function AppLayout() {
-  const provider = useDataProvider()
   const { user } = useAuth()
   const {
     workspaces,
@@ -28,35 +26,17 @@ export function AppLayout() {
     setActiveWorkspaceId,
     teams,
     loading,
+    refresh,
   } = useWorkspace()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [calendars, setCalendars] = useState<Calendar[]>([])
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
+  const calendarsQuery = useCalendars(activeWorkspaceId)
+  const calendars = calendarsQuery.data ?? []
   const notificationsState = useNotifications(activeWorkspaceId)
-  useRealtimeWorkspace(activeWorkspaceId)
+  useRealtimeWorkspace(activeWorkspaceId, refresh)
 
-  useEffect(() => {
-    if (!activeWorkspaceId) {
-      setCalendars([])
-      return
-    }
-
-    let cancelled = false
-    provider
-      .listCalendars(activeWorkspaceId)
-      .then((nextCalendars) => {
-        if (!cancelled) setCalendars(nextCalendars)
-      })
-      .catch(() => {
-        if (!cancelled) setCalendars([])
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeWorkspaceId, provider])
 
   const unreadCount = notificationsState.unreadCount
 

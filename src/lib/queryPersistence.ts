@@ -22,6 +22,6 @@ export const persistedQueryOptions = {
   maxAge: 86_400_000,
   dehydrateOptions: {
     shouldDehydrateQuery: (query: { queryKey: readonly unknown[] }) =>
-      query.queryKey[0] === 'events',
+      query.queryKey[0] === 'events' || query.queryKey[0] === 'calendars',
   },
 }

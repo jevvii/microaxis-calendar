@@ -40,5 +40,6 @@ psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/s
 
 psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/03_notify.sql"
 psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/04_crud_rpc.sql"
+psql -h "$TMP" -p "$PORT" -U postgres -d "$DB" -v ON_ERROR_STOP=1 -q -f "$ROOT/supabase/tests/05_realtime.sql"
 
-echo "SQL schema, RLS, workspace RPC, and notification tests passed."
+echo "SQL schema, RLS, workspace RPC, notification, and realtime tests passed."

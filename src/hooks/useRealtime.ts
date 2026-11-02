@@ -5,7 +5,10 @@ import { supabase } from '../lib/supabase'
 
 export type RealtimeStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'unconfigured'
 
-export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
+export function useRealtimeWorkspace(
+  workspaceId: string | null | undefined,
+  onStructureChange?: () => void,
+) {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<RealtimeStatus>('idle')
@@ -24,16 +27,25 @@ export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
     setStatus('connecting')
     const client = supabase
 
-    function invalidateEvents() {
-      void queryClient.invalidateQueries({ queryKey: ['events'] })
+    function invalidateEventData() {
+      for (const queryKey of ['events', 'calendars', 'comments', 'attachments', 'activity']) {
+        void queryClient.invalidateQueries({ queryKey: [queryKey] })
+      }
+    }
+
+    function invalidateStructure() {
+      onStructureChange?.()
       void queryClient.invalidateQueries({ queryKey: ['calendars'] })
-      void queryClient.invalidateQueries({ queryKey: ['comments'] })
-      void queryClient.invalidateQueries({ queryKey: ['attachments'] })
-      void queryClient.invalidateQueries({ queryKey: ['activity'] })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
+      void queryClient.invalidateQueries({ queryKey: ['audit', workspaceId] })
     }
 
     function invalidateNotifications() {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    }
+
+    function invalidateCategories() {
+      void queryClient.invalidateQueries({ queryKey: ['categories'] })
     }
 
     const channel = client
@@ -41,22 +53,22 @@ export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'events', filter: `workspace_id=eq.${workspaceId}` },
-        invalidateEvents,
+        invalidateEventData,
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'event_participants' },
-        invalidateEvents,
+        invalidateEventData,
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'event_comments', filter: `workspace_id=eq.${workspaceId}` },
-        invalidateEvents,
+        invalidateEventData,
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'event_attachments', filter: `workspace_id=eq.${workspaceId}` },
-        invalidateEvents,
+        invalidateEventData,
       )
       .on(
         'postgres_changes',
@@ -66,13 +78,42 @@ export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'calendars', filter: `workspace_id=eq.${workspaceId}` },
-        invalidateEvents,
+        invalidateEventData,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'teams', filter: `workspace_id=eq.${workspaceId}` },
+        invalidateStructure,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'team_members' },
+        invalidateStructure,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'workspace_members', filter: `workspace_id=eq.${workspaceId}` },
+        invalidateStructure,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'calendar_shares' },
+        invalidateStructure,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'event_categories', filter: `workspace_id=eq.${workspaceId}` },
+        invalidateCategories,
       )
       .subscribe((nextStatus) => {
         if (nextStatus === 'SUBSCRIBED') {
           setStatus('connected')
-          invalidateEvents()
+          // A reconnect can miss changes, so refresh every workspace-scoped query.
+          invalidateEventData()
           invalidateNotifications()
+          invalidateCategories()
+          onStructureChange?.()
+          void queryClient.invalidateQueries({ queryKey: ['audit', workspaceId] })
         } else if (nextStatus === 'CHANNEL_ERROR' || nextStatus === 'TIMED_OUT') {
           setStatus('error')
         }
@@ -81,7 +122,7 @@ export function useRealtimeWorkspace(workspaceId: string | null | undefined) {
     return () => {
       void client.removeChannel(channel)
     }
-  }, [queryClient, user, workspaceId])
+  }, [onStructureChange, queryClient, user, workspaceId])
 
   return status
 }

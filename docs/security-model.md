@@ -53,7 +53,9 @@ Bucket `event-attachments` is private, limited to 10 MB, and restricted to an ex
 
 ## Realtime
 
-Postgres Changes are used for events, participants, comments, attachments, notifications, and calendars. RLS on the source tables governs row visibility. Broadcast/presence channels use `workspace:<workspace_id>` and are guarded by `realtime.messages` policies tied to workspace membership.
+Postgres Changes are used for events, participants, comments, attachments, notifications, calendars, teams, team members, workspace members, calendar shares, and event categories. RLS on the source tables governs row visibility. Share rows are readable by calendar managers and by the user/team/workspace the share names, which is what lets a recipient's sidebar receive a newly shared calendar. Broadcast/presence channels use `workspace:<workspace_id>` and are guarded by `realtime.messages` policies tied to workspace membership.
+
+Each mutation writes its result into the TanStack Query cache immediately, then invalidates the affected keys so the refetch reconciles. Realtime invalidation handles other signed-in users; a reconnect refreshes every workspace-scoped query because changes may have been missed while offline.
 
 ## Known free-tier limits
 
