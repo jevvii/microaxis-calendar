@@ -78,4 +78,80 @@ begin
 end;
 $$;
 
+do $$
+declare
+  v_roles text;
+begin
+  select string_agg(user_id::text || ':' || role::text, ',' order by user_id)
+  into v_roles
+  from public.workspace_members
+  where workspace_id = '10000000-0000-4000-8000-000000000001';
+
+  if v_roles not like '%a0000000-0000-4000-8000-000000000001:owner%' then
+    raise exception 'Expected Mara to remain the workspace owner before transfer, got %', v_roles;
+  end if;
+end;
+$$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claims', '{"email":"mara@microaxis.test"}', false);
+
+select public.transfer_workspace_ownership(
+  '10000000-0000-4000-8000-000000000001',
+  'a0000000-0000-4000-8000-000000000002'
+);
+
+reset role;
+
+do $$
+declare
+  v_old text;
+  v_new text;
+begin
+  select role::text into v_old
+  from public.workspace_members
+  where workspace_id = '10000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000001';
+
+  select role::text into v_new
+  from public.workspace_members
+  where workspace_id = '10000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000002';
+
+  if v_old <> 'admin' or v_new <> 'owner' then
+    raise exception 'Ownership transfer failed: old=%, new=%', v_old, v_new;
+  end if;
+end;
+$$;
+
+insert into public.workspaces (id, name, slug, created_by)
+values (
+  '10000000-0000-4000-8000-000000000099',
+  'Purge Test',
+  'purge-test',
+  'a0000000-0000-4000-8000-000000000001'
+);
+
+insert into public.workspace_members (workspace_id, user_id, role)
+values (
+  '10000000-0000-4000-8000-000000000099',
+  'a0000000-0000-4000-8000-000000000001',
+  'owner'
+);
+
+update public.workspaces
+set deleted_at = now() - interval '31 days'
+where id = '10000000-0000-4000-8000-000000000099';
+
+select public.purge_deleted_workspaces();
+
+do $$
+begin
+  if exists (select 1 from public.workspaces where id = '10000000-0000-4000-8000-000000000099') then
+    raise exception 'Deleted workspace should be purged after 30 days';
+  end if;
+end;
+$$;
+
 reset role;
