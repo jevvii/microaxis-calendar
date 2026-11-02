@@ -28,6 +28,15 @@ function createUnconfiguredProvider(): DataProvider {
     listNotifications: notConfigured,
     markNotificationRead: notConfigured,
     setRsvp: notConfigured,
+    listComments: notConfigured,
+    createComment: notConfigured,
+    updateComment: notConfigured,
+    deleteComment: notConfigured,
+    listAttachments: notConfigured,
+    uploadAttachment: notConfigured,
+    deleteAttachment: notConfigured,
+    getAttachmentUrl: notConfigured,
+    listActivity: notConfigured,
   }
 }
 

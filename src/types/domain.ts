@@ -157,6 +157,43 @@ export type EventOccurrence = Event & {
   parentStart: ISODateString
 }
 
+export type EventComment = {
+  id: string
+  workspaceId: string
+  eventId: string
+  authorId: string | null
+  body: string
+  createdAt: ISODateString
+  updatedAt: ISODateString
+  deletedAt: ISODateString | null
+  author?: Profile
+}
+
+export type EventAttachment = {
+  id: string
+  workspaceId: string
+  eventId: string
+  uploadedBy: string | null
+  storagePath: string
+  fileName: string
+  mimeType: string
+  sizeBytes: number
+  createdAt: ISODateString
+  deletedAt: ISODateString | null
+  uploader?: Profile
+}
+
+export type EventActivity = {
+  id: string
+  workspaceId: string
+  eventId: string
+  actorId: string | null
+  action: string
+  metadata: Record<string, unknown>
+  createdAt: ISODateString
+  actor?: Profile
+}
+
 export type Notification = {
   id: string
   workspaceId: string

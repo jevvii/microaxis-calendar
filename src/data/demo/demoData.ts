@@ -1,7 +1,10 @@
 import type {
   Calendar,
   Event,
+  EventActivity,
+  EventAttachment,
   EventCategory,
+  EventComment,
   EventParticipant,
   Notification,
   Profile,
@@ -586,6 +589,65 @@ export const demoNotifications: Notification[] = [
   },
 ]
 
+export const demoComments: EventComment[] = [
+  {
+    id: '70000000-0000-4000-8000-000000000001',
+    workspaceId: DEMO_WORKSPACE_ID,
+    eventId: '40000000-0000-4000-8000-000000000003',
+    authorId: 'a0000000-0000-4000-8000-000000000003',
+    body: '@Mara Velasco can you check the focus order on step 3?',
+    createdAt: '2026-11-01T23:55:00.000Z',
+    updatedAt: '2026-11-01T23:55:00.000Z',
+    deletedAt: null,
+  },
+  {
+    id: '70000000-0000-4000-8000-000000000002',
+    workspaceId: DEMO_WORKSPACE_ID,
+    eventId: '40000000-0000-4000-8000-000000000001',
+    authorId: 'a0000000-0000-4000-8000-000000000002',
+    body: 'The release notes are in the shared folder. I will walk through the last two tickets.',
+    createdAt: '2026-11-02T01:10:00.000Z',
+    updatedAt: '2026-11-02T01:10:00.000Z',
+    deletedAt: null,
+  },
+]
+
+export const demoAttachments: EventAttachment[] = [
+  {
+    id: '80000000-0000-4000-8000-000000000001',
+    workspaceId: DEMO_WORKSPACE_ID,
+    eventId: '40000000-0000-4000-8000-000000000001',
+    uploadedBy: 'a0000000-0000-4000-8000-000000000002',
+    storagePath: 'demo/oceanjet-release-notes.pdf',
+    fileName: 'oceanjet-release-notes.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: 284000,
+    createdAt: '2026-11-02T01:12:00.000Z',
+    deletedAt: null,
+  },
+]
+
+export const demoActivity: EventActivity[] = [
+  {
+    id: '90000000-0000-4000-8000-000000000001',
+    workspaceId: DEMO_WORKSPACE_ID,
+    eventId: '40000000-0000-4000-8000-000000000001',
+    actorId: 'a0000000-0000-4000-8000-000000000002',
+    action: 'created',
+    metadata: { title: 'OceanJet release review' },
+    createdAt: '2026-11-01T00:00:00.000Z',
+  },
+  {
+    id: '90000000-0000-4000-8000-000000000002',
+    workspaceId: DEMO_WORKSPACE_ID,
+    eventId: '40000000-0000-4000-8000-000000000001',
+    actorId: 'a0000000-0000-4000-8000-000000000001',
+    action: 'status_changed',
+    metadata: { status: 'scheduled' },
+    createdAt: '2026-11-02T01:00:00.000Z',
+  },
+]
+
 export type DemoState = {
   currentUserId: string
   profiles: Profile[]
@@ -597,6 +659,9 @@ export type DemoState = {
   categories: EventCategory[]
   events: Event[]
   notifications: Notification[]
+  comments: EventComment[]
+  attachments: EventAttachment[]
+  activity: EventActivity[]
 }
 
 export function createDemoSeed(): DemoState {
@@ -611,6 +676,9 @@ export function createDemoSeed(): DemoState {
     categories: structuredClone(demoCategories),
     events: structuredClone(demoEvents),
     notifications: structuredClone(demoNotifications),
+    comments: structuredClone(demoComments),
+    attachments: structuredClone(demoAttachments),
+    activity: structuredClone(demoActivity),
   }
 }
 

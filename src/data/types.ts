@@ -8,6 +8,9 @@ import type {
   Workspace,
   WorkspaceMembership,
   RsvpStatus,
+  EventComment,
+  EventAttachment,
+  EventActivity,
 } from '../types/domain'
 
 export type EventRange = {
@@ -43,4 +46,17 @@ export type DataProvider = {
   listNotifications: (workspaceId: string) => Promise<Notification[]>
   markNotificationRead: (notificationId: string) => Promise<void>
   setRsvp: (eventId: string, status: RsvpStatus) => Promise<void>
+  listComments: (eventId: string) => Promise<EventComment[]>
+  createComment: (eventId: string, body: string) => Promise<EventComment>
+  updateComment: (commentId: string, body: string) => Promise<EventComment>
+  deleteComment: (commentId: string) => Promise<void>
+  listAttachments: (eventId: string) => Promise<EventAttachment[]>
+  uploadAttachment: (input: {
+    workspaceId: string
+    eventId: string
+    file: File
+  }) => Promise<EventAttachment>
+  deleteAttachment: (attachmentId: string) => Promise<void>
+  getAttachmentUrl: (storagePath: string) => Promise<string>
+  listActivity: (eventId: string) => Promise<EventActivity[]>
 }

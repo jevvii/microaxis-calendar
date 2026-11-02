@@ -1,7 +1,10 @@
 import type {
   Calendar,
   Event,
+  EventActivity,
+  EventAttachment,
   EventCategory,
+  EventComment,
   EventInput,
   Notification,
   RsvpStatus,
@@ -10,6 +13,7 @@ import type {
   WorkspaceMembership,
 } from '../../types/domain'
 import { calendarRole } from '../../lib/permissions'
+import { validateAttachmentFile } from '../../lib/attachments'
 import type {
   DataProvider,
   DeleteEventResult,
@@ -24,11 +28,20 @@ function clone<T>(value: T): T {
 
 export function createDemoProvider(storage: Storage = window.localStorage): DataProvider {
   let state = loadState()
+  const demoUrls = new Map<string, string>()
 
   function loadState(): DemoState {
     try {
       const stored = storage.getItem(DEMO_STORAGE_KEY)
-      if (stored) return JSON.parse(stored) as DemoState
+      if (stored) {
+        const parsed = JSON.parse(stored) as DemoState
+        return {
+          ...parsed,
+          comments: parsed.comments ?? [],
+          attachments: parsed.attachments ?? [],
+          activity: parsed.activity ?? [],
+        }
+      }
     } catch {
       // A corrupt or unavailable store should not block the demo.
     }
@@ -372,6 +385,133 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
             : notification,
         ),
       })
+    },
+
+    async listComments(eventId: string): Promise<EventComment[]> {
+      return state.comments
+        .filter((comment) => comment.eventId === eventId && !comment.deletedAt)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .map((comment) => ({
+          ...clone(comment),
+          author: state.profiles.find((profile) => profile.id === comment.authorId),
+        }))
+    },
+
+    async createComment(eventId: string, body: string): Promise<EventComment> {
+      const event = state.events.find((item) => item.id === eventId)
+      if (!event) throw new Error('Event not found')
+      const now = new Date().toISOString()
+      const comment: EventComment = {
+        id: crypto.randomUUID(),
+        workspaceId: event.workspaceId,
+        eventId,
+        authorId: state.currentUserId,
+        body: body.trim(),
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+      }
+      saveState({ ...state, comments: [...(state.comments ?? []), comment] })
+      return {
+        ...clone(comment),
+        author: state.profiles.find((profile) => profile.id === comment.authorId),
+      }
+    },
+
+    async updateComment(commentId: string, body: string): Promise<EventComment> {
+      const comment = state.comments.find((item) => item.id === commentId)
+      if (!comment) throw new Error('Comment not found')
+      if (comment.authorId !== state.currentUserId) throw new Error('You can only edit your own comments')
+      const updated = { ...comment, body: body.trim(), updatedAt: new Date().toISOString() }
+      saveState({
+        ...state,
+        comments: state.comments.map((item) => (item.id === commentId ? updated : item)),
+      })
+      return {
+        ...clone(updated),
+        author: state.profiles.find((profile) => profile.id === updated.authorId),
+      }
+    },
+
+    async deleteComment(commentId: string) {
+      const comment = state.comments.find((item) => item.id === commentId)
+      if (!comment) return
+      if (comment.authorId !== state.currentUserId) throw new Error('You can only delete your own comments')
+      saveState({
+        ...state,
+        comments: state.comments.map((item) =>
+          item.id === commentId ? { ...item, deletedAt: new Date().toISOString() } : item,
+        ),
+      })
+    },
+
+    async listAttachments(eventId: string): Promise<EventAttachment[]> {
+      return state.attachments
+        .filter((attachment) => attachment.eventId === eventId && !attachment.deletedAt)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((attachment) => ({
+          ...clone(attachment),
+          uploader: state.profiles.find((profile) => profile.id === attachment.uploadedBy),
+        }))
+    },
+
+    async uploadAttachment({ eventId, file, workspaceId }) {
+      const validationError = validateAttachmentFile(file)
+      if (validationError) throw new Error(validationError)
+
+      const id = crypto.randomUUID()
+      const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin'
+      const storagePath = `demo/${workspaceId}/${eventId}/${id}.${extension}`
+      const attachment: EventAttachment = {
+        id,
+        workspaceId,
+        eventId,
+        uploadedBy: state.currentUserId,
+        storagePath,
+        fileName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        createdAt: new Date().toISOString(),
+        deletedAt: null,
+      }
+
+      if (typeof URL.createObjectURL === 'function') {
+        demoUrls.set(storagePath, URL.createObjectURL(file))
+      }
+
+      saveState({ ...state, attachments: [...(state.attachments ?? []), attachment] })
+      return {
+        ...clone(attachment),
+        uploader: currentUser() ?? undefined,
+      }
+    },
+
+    async deleteAttachment(attachmentId: string) {
+      const attachment = state.attachments.find((item) => item.id === attachmentId)
+      if (!attachment) return
+      const url = demoUrls.get(attachment.storagePath)
+      if (url) URL.revokeObjectURL(url)
+      demoUrls.delete(attachment.storagePath)
+      saveState({
+        ...state,
+        attachments: state.attachments.map((item) =>
+          item.id === attachmentId ? { ...item, deletedAt: new Date().toISOString() } : item,
+        ),
+      })
+    },
+
+    async getAttachmentUrl(storagePath: string) {
+      return demoUrls.get(storagePath) ?? ''
+    },
+
+    async listActivity(eventId: string): Promise<EventActivity[]> {
+      return state.activity
+        .filter((activity) => activity.eventId === eventId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((activity) => ({
+          ...clone(activity),
+          actor: state.profiles.find((profile) => profile.id === activity.actorId),
+        }))
     },
 
     async setRsvp(eventId: string, status: RsvpStatus) {

@@ -24,6 +24,7 @@ import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
 import { CreatorMark } from '../calendar/CreatorMark'
 import { DeleteEventDialog } from './DeleteEventDialog'
+import { EventCollaboration } from './EventCollaboration'
 import { EventForm } from './EventForm'
 import { EventStatusControl } from './EventStatusControl'
 import { RsvpControl } from './RsvpControl'
@@ -46,6 +47,7 @@ export function EventDrawer({
   members,
   currentUserId,
   canEdit,
+  canModerate = false,
   saving = false,
   deleting = false,
   conflict,
@@ -67,6 +69,7 @@ export function EventDrawer({
   members: WorkspaceMembership[]
   currentUserId: string
   canEdit: boolean
+  canModerate?: boolean
   saving?: boolean
   deleting?: boolean
   conflict?: Event | null
@@ -261,6 +264,14 @@ export function EventDrawer({
                     </div>
                   </section>
                 ) : null}
+
+                <EventCollaboration
+                  event={event}
+                  currentUserId={currentUserId}
+                  canModerate={canModerate}
+                  canManage={canEdit}
+                  members={members}
+                />
               </div>
             ) : null}
           </div>

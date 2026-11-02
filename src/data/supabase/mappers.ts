@@ -3,7 +3,10 @@ import type {
   CalendarKind,
   CalendarShare,
   Event,
+  EventActivity,
+  EventAttachment,
   EventCategory,
+  EventComment,
   EventParticipant,
   Notification,
   Profile,
@@ -117,6 +120,43 @@ export type EventCategoryRow = {
   color: string
   icon: string
   created_at: string
+}
+
+export type EventCommentRow = {
+  id: string
+  workspace_id: string
+  event_id: string
+  author_id: string | null
+  body: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  author?: ProfileRow | ProfileRow[] | null
+}
+
+export type EventAttachmentRow = {
+  id: string
+  workspace_id: string
+  event_id: string
+  uploaded_by: string | null
+  storage_path: string
+  file_name: string
+  mime_type: string
+  size_bytes: number
+  created_at: string
+  deleted_at: string | null
+  uploader?: ProfileRow | ProfileRow[] | null
+}
+
+export type EventActivityRow = {
+  id: string
+  workspace_id: string
+  event_id: string
+  actor_id: string | null
+  action: string
+  metadata: Record<string, unknown> | null
+  created_at: string
+  actor?: ProfileRow | ProfileRow[] | null
 }
 
 export type NotificationRow = {
@@ -274,6 +314,52 @@ export function mapEventRow(
     creator: extras.creator,
     category: extras.category,
     participants: extras.participants,
+  }
+}
+
+export function mapEventCommentRow(row: EventCommentRow): EventComment {
+  const author = Array.isArray(row.author) ? row.author[0] : row.author
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    eventId: row.event_id,
+    authorId: row.author_id,
+    body: row.body,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    deletedAt: row.deleted_at,
+    author: author ? mapProfileRow(author) : undefined,
+  }
+}
+
+export function mapEventAttachmentRow(row: EventAttachmentRow): EventAttachment {
+  const uploader = Array.isArray(row.uploader) ? row.uploader[0] : row.uploader
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    eventId: row.event_id,
+    uploadedBy: row.uploaded_by,
+    storagePath: row.storage_path,
+    fileName: row.file_name,
+    mimeType: row.mime_type,
+    sizeBytes: row.size_bytes,
+    createdAt: row.created_at,
+    deletedAt: row.deleted_at,
+    uploader: uploader ? mapProfileRow(uploader) : undefined,
+  }
+}
+
+export function mapEventActivityRow(row: EventActivityRow): EventActivity {
+  const actor = Array.isArray(row.actor) ? row.actor[0] : row.actor
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    eventId: row.event_id,
+    actorId: row.actor_id,
+    action: row.action,
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+    actor: actor ? mapProfileRow(actor) : undefined,
   }
 }
 

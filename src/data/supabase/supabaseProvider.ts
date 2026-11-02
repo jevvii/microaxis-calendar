@@ -1,9 +1,14 @@
 import { supabase } from '../../lib/supabase'
+import { validateAttachmentFile } from '../../lib/attachments'
+import { compressImage } from '../../lib/imageCompression'
 import type {
   Calendar,
   CalendarKind,
   Event,
+  EventActivity,
+  EventAttachment,
   EventCategory,
+  EventComment,
   EventInput,
   Notification,
   Profile,
@@ -14,7 +19,10 @@ import type {
 import type { DataProvider, DeleteEventResult, EventRange, UpdateEventResult } from '../types'
 import {
   mapCalendarRow,
+  mapEventActivityRow,
+  mapEventAttachmentRow,
   mapEventCategoryRow,
+  mapEventCommentRow,
   mapEventParticipantRow,
   mapEventRow,
   mapNotificationRow,
@@ -23,7 +31,10 @@ import {
   mapWorkspaceMemberRow,
   mapWorkspaceRow,
   type CalendarRow,
+  type EventActivityRow,
+  type EventAttachmentRow,
   type EventCategoryRow,
+  type EventCommentRow,
   type EventParticipantRow,
   type EventRow,
   type NotificationRow,
@@ -471,6 +482,170 @@ export function createSupabaseProvider(): DataProvider {
         .update({ read_at: new Date().toISOString() })
         .eq('id', notificationId)
       throwIf(error)
+    },
+
+    async listComments(eventId: string): Promise<EventComment[]> {
+      const { data, error } = await client()
+        .from('event_comments')
+        .select(
+          'id, workspace_id, event_id, author_id, body, created_at, updated_at, deleted_at, author:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .eq('event_id', eventId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+
+      throwIf(error)
+      return ((data ?? []) as unknown as EventCommentRow[]).map(mapEventCommentRow)
+    },
+
+    async createComment(eventId: string, body: string): Promise<EventComment> {
+      const userId = await currentUserId()
+      const { data: event, error: eventError } = await client()
+        .from('events')
+        .select('workspace_id')
+        .eq('id', eventId)
+        .single<{ workspace_id: string }>()
+
+      throwIf(eventError)
+      if (!event) throw new Error('Event not found')
+
+      const { data, error } = await client()
+        .from('event_comments')
+        .insert({
+          workspace_id: event.workspace_id,
+          event_id: eventId,
+          author_id: userId,
+          body: body.trim(),
+        })
+        .select(
+          'id, workspace_id, event_id, author_id, body, created_at, updated_at, deleted_at, author:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .single<EventCommentRow>()
+
+      throwIf(error)
+      if (!data) throw new Error('The comment could not be created')
+      return mapEventCommentRow(data)
+    },
+
+    async updateComment(commentId: string, body: string): Promise<EventComment> {
+      const { data, error } = await client()
+        .from('event_comments')
+        .update({ body: body.trim() })
+        .eq('id', commentId)
+        .select(
+          'id, workspace_id, event_id, author_id, body, created_at, updated_at, deleted_at, author:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .single<EventCommentRow>()
+
+      throwIf(error)
+      if (!data) throw new Error('The comment could not be updated')
+      return mapEventCommentRow(data)
+    },
+
+    async deleteComment(commentId: string) {
+      const { error } = await client()
+        .from('event_comments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', commentId)
+      throwIf(error)
+    },
+
+    async listAttachments(eventId: string): Promise<EventAttachment[]> {
+      const { data, error } = await client()
+        .from('event_attachments')
+        .select(
+          'id, workspace_id, event_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, created_at, deleted_at, uploader:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .eq('event_id', eventId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      throwIf(error)
+      return ((data ?? []) as unknown as EventAttachmentRow[]).map(mapEventAttachmentRow)
+    },
+
+    async uploadAttachment({ workspaceId, eventId, file }) {
+      const validationError = validateAttachmentFile(file)
+      if (validationError) throw new Error(validationError)
+
+      const userId = await currentUserId()
+      const uploadFile =
+        file.type.startsWith('image/') && file.size > 1024 * 1024
+          ? await compressImage(file)
+          : file
+      const extension = file.name.includes('.') ? file.name.split('.').pop() : 'bin'
+      const storagePath = `${workspaceId}/${eventId}/${crypto.randomUUID()}.${extension}`
+
+      const { error: uploadError } = await client()
+        .storage.from('event-attachments')
+        .upload(storagePath, uploadFile, {
+          contentType: uploadFile.type,
+          upsert: false,
+        })
+      throwIf(uploadError)
+
+      const { data, error } = await client()
+        .from('event_attachments')
+        .insert({
+          workspace_id: workspaceId,
+          event_id: eventId,
+          uploaded_by: userId,
+          storage_path: storagePath,
+          file_name: file.name,
+          mime_type: uploadFile.type,
+          size_bytes: uploadFile.size,
+        })
+        .select(
+          'id, workspace_id, event_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, created_at, deleted_at, uploader:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .single<EventAttachmentRow>()
+
+      throwIf(error)
+      if (!data) throw new Error('The attachment could not be saved')
+      return mapEventAttachmentRow(data)
+    },
+
+    async deleteAttachment(attachmentId: string) {
+      const { data: attachment, error: fetchError } = await client()
+        .from('event_attachments')
+        .select('storage_path')
+        .eq('id', attachmentId)
+        .single<{ storage_path: string }>()
+
+      throwIf(fetchError)
+      if (!attachment) throw new Error('Attachment not found')
+
+      const { error: storageError } = await client()
+        .storage.from('event-attachments')
+        .remove([attachment.storage_path])
+      throwIf(storageError)
+
+      const { error } = await client()
+        .from('event_attachments')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', attachmentId)
+      throwIf(error)
+    },
+
+    async getAttachmentUrl(storagePath: string) {
+      const { data, error } = await client()
+        .storage.from('event-attachments')
+        .createSignedUrl(storagePath, 60)
+      throwIf(error)
+      return data?.signedUrl ?? ''
+    },
+
+    async listActivity(eventId: string): Promise<EventActivity[]> {
+      const { data, error } = await client()
+        .from('event_activity')
+        .select(
+          'id, workspace_id, event_id, actor_id, action, metadata, created_at, actor:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+
+      throwIf(error)
+      return ((data ?? []) as unknown as EventActivityRow[]).map(mapEventActivityRow)
     },
 
     async setRsvp(eventId: string, status) {

@@ -436,6 +436,7 @@ export function CalendarPage() {
         members={members}
         currentUserId={user?.id ?? ''}
         canEdit={canEditSelected}
+        canModerate={membership?.role === 'owner' || membership?.role === 'admin'}
         saving={createEvent.isPending || updateEvent.isPending}
         deleting={deleteEvent.isPending}
         conflict={conflict}
