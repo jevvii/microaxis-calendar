@@ -851,6 +851,41 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
       })
     },
 
+    async transferWorkspaceOwnership(workspaceId: string, newOwnerId: string) {
+      if (workspaceRole(workspaceId) !== 'owner') {
+        throw new Error('Only a workspace owner can transfer ownership')
+      }
+      if (!isWorkspaceMember(workspaceId, newOwnerId)) {
+        throw new Error('The new owner must already be a workspace member')
+      }
+      saveState({
+        ...state,
+        workspaceMemberships: state.workspaceMemberships.map((membership) => {
+          if (membership.workspaceId !== workspaceId) return membership
+          if (membership.userId === state.currentUserId) return { ...membership, role: 'admin' }
+          if (membership.userId === newOwnerId) return { ...membership, role: 'owner' }
+          return membership
+        }),
+      })
+    },
+
+    async deleteWorkspace(workspaceId: string, confirmationName: string) {
+      if (workspaceRole(workspaceId) !== 'owner') {
+        throw new Error('Only a workspace owner can delete the workspace')
+      }
+      const workspace = state.workspaces.find((item) => item.id === workspaceId)
+      if (!workspace) throw new Error('Workspace not found')
+      if (workspace.name !== confirmationName) {
+        throw new Error('Type the workspace name exactly to confirm deletion')
+      }
+      saveState({
+        ...state,
+        workspaces: state.workspaces.map((item) =>
+          item.id === workspaceId ? { ...item, deletedAt: new Date().toISOString() } : item,
+        ),
+      })
+    },
+
     async listAuditLog(workspaceId: string): Promise<WorkspaceAuditEntry[]> {
       return state.auditLog
         .filter((entry) => entry.workspaceId === workspaceId)

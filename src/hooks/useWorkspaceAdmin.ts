@@ -53,6 +53,18 @@ export function useWorkspaceAdmin(workspaceId: string | null | undefined) {
     onSuccess: invalidate,
   })
 
+  const transferOwnership = useMutation({
+    mutationFn: (newOwnerId: string) =>
+      provider.transferWorkspaceOwnership(workspaceId as string, newOwnerId),
+    onSuccess: invalidate,
+  })
+
+  const deleteWorkspace = useMutation({
+    mutationFn: (confirmationName: string) =>
+      provider.deleteWorkspace(workspaceId as string, confirmationName),
+    onSuccess: invalidate,
+  })
+
   const auditQuery = useQuery({
     queryKey: ['audit', workspaceId],
     queryFn: () => provider.listAuditLog(workspaceId as string),
@@ -66,6 +78,8 @@ export function useWorkspaceAdmin(workspaceId: string | null | undefined) {
     updateTeam,
     deleteTeam,
     createCalendar,
+    transferOwnership,
+    deleteWorkspace,
     auditQuery,
   }
 }

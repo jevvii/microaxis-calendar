@@ -50,6 +50,8 @@ function createUnconfiguredProvider(): DataProvider {
     upsertCalendarShare: notConfigured,
     deleteCalendarShare: notConfigured,
     listAuditLog: notConfigured,
+    transferWorkspaceOwnership: notConfigured,
+    deleteWorkspace: notConfigured,
   }
 }
 

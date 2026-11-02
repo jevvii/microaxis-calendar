@@ -1,9 +1,12 @@
 import { EnvelopeSimple, Plus } from '@phosphor-icons/react'
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CalendarCreateDialog } from '../components/calendar/CalendarCreateDialog'
 import { CalendarSettings } from '../components/calendar/CalendarSettings'
 import { ShareDialog } from '../components/calendar/ShareDialog'
 import { AuditLog } from '../components/workspace/AuditLog'
+import { DangerZone } from '../components/settings/DangerZone'
+import { OwnershipTransfer } from '../components/settings/OwnershipTransfer'
 import { MemberTable } from '../components/workspace/MemberTable'
 import { TeamEditor } from '../components/workspace/TeamEditor'
 import { Badge } from '../components/ui/Badge'
@@ -13,6 +16,8 @@ import { Field } from '../components/ui/Field'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { createWorkspaceInvite } from '../lib/auth'
+import { downloadFile, exportCalendarIcs, exportWorkspaceJson } from '../lib/export'
+import { useDataProvider } from '../data/provider'
 import { supabase } from '../lib/supabase'
 import { useCalendars } from '../hooks/useCalendars'
 import { useCategories } from '../hooks/useCategories'
@@ -22,7 +27,7 @@ import { useToast } from '../providers/ToastProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 import type { WorkspaceRole } from '../types/domain'
 
-type Tab = 'members' | 'teams' | 'calendars' | 'categories' | 'audit'
+type Tab = 'members' | 'teams' | 'calendars' | 'categories' | 'audit' | 'danger'
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'members', label: 'Members' },
@@ -30,9 +35,12 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: 'calendars', label: 'Calendars' },
   { id: 'categories', label: 'Categories' },
   { id: 'audit', label: 'Audit log' },
+  { id: 'danger', label: 'Danger zone' },
 ]
 
 export function WorkspacePage() {
+  const provider = useDataProvider()
+  const navigate = useNavigate()
   const { user, isDemo } = useAuth()
   const { toast } = useToast()
   const { activeWorkspace, activeWorkspaceId, members, teams, membership } = useWorkspace()
@@ -54,6 +62,7 @@ export function WorkspacePage() {
   const calendars = calendarsQuery.data ?? []
   const categories = categoriesQuery.data ?? []
   const canManage = membership?.role === 'owner' || membership?.role === 'admin'
+  const isOwner = membership?.role === 'owner'
   const editingTeam = teamEditorId ? teams.find((team) => team.id === teamEditorId) ?? null : null
   const settingsCalendar = calendars.find((calendar) => calendar.id === settingsCalendarId) ?? null
   const shareCalendar = calendars.find((calendar) => calendar.id === shareCalendarId) ?? null
@@ -125,7 +134,7 @@ export function WorkspacePage() {
       </div>
 
       <div className="mt-6 flex gap-1 overflow-x-auto border-b border-line pb-px">
-        {tabs.map((item) => (
+        {tabs.filter((item) => item.id !== 'danger' || isOwner).map((item) => (
           <button
             key={item.id}
             type="button"
@@ -251,6 +260,28 @@ export function WorkspacePage() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={async () => {
+                      if (!activeWorkspaceId) return
+                      const calendarEvents = await provider.listEvents({
+                        workspaceId: activeWorkspaceId,
+                        rangeStart: '1970-01-01T00:00:00.000Z',
+                        rangeEnd: '2100-01-01T00:00:00.000Z',
+                      })
+                      downloadFile(
+                        `${calendar.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`,
+                        exportCalendarIcs(
+                          calendar,
+                          calendarEvents.filter((event) => event.calendarId === calendar.id),
+                        ),
+                        'text/calendar',
+                      )
+                    }}
+                  >
+                    ICS
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setShareCalendarId(calendar.id)}
                   >
                     Share
@@ -291,6 +322,67 @@ export function WorkspacePage() {
                 </div>
               ))}
             </div>
+          </section>
+        ) : null}
+
+        {tab === 'danger' && isOwner ? (
+          <section className="grid gap-8">
+            <OwnershipTransfer
+              members={members}
+              currentUserId={user?.id ?? ''}
+              saving={admin.transferOwnership.isPending}
+              onTransfer={(userId) =>
+                admin.transferOwnership.mutate(userId, {
+                  onSuccess: () => toast({ title: 'Ownership transferred', tone: 'success' }),
+                  onError: (reason) =>
+                    toast({
+                      title: 'Could not transfer ownership',
+                      description: reason instanceof Error ? reason.message : 'Try again.',
+                      tone: 'error',
+                    }),
+                })
+              }
+            />
+            {activeWorkspace ? (
+              <DangerZone
+                workspace={activeWorkspace}
+                saving={admin.deleteWorkspace.isPending}
+                onExport={async () => {
+                  if (!activeWorkspaceId) return
+                  const allEvents = await provider.listEvents({
+                    workspaceId: activeWorkspaceId,
+                    rangeStart: '1970-01-01T00:00:00.000Z',
+                    rangeEnd: '2100-01-01T00:00:00.000Z',
+                  })
+                  downloadFile(
+                    `${activeWorkspace.slug}-export.json`,
+                    exportWorkspaceJson({
+                      workspace: activeWorkspace,
+                      members,
+                      teams,
+                      calendars,
+                      categories,
+                      events: allEvents,
+                    }),
+                    'application/json',
+                  )
+                }}
+                onDelete={(confirmation) =>
+                  admin.deleteWorkspace.mutate(confirmation, {
+                    onSuccess: () => {
+                      toast({ title: 'Workspace scheduled for deletion', tone: 'success' })
+                      navigate('/onboarding')
+                    },
+                    onError: (reason) =>
+                      toast({
+                        title: 'Could not delete the workspace',
+                        description: reason instanceof Error ? reason.message : 'Try again.',
+                        tone: 'error',
+                      }),
+                  })
+                }
+              />
+            ) : null}
           </section>
         ) : null}
 

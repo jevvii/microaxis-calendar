@@ -900,6 +900,22 @@ export function createSupabaseProvider(): DataProvider {
       return ((data ?? []) as unknown as WorkspaceAuditEntryRow[]).map(mapWorkspaceAuditEntryRow)
     },
 
+    async transferWorkspaceOwnership(workspaceId, newOwnerId) {
+      const { error } = await client().rpc('transfer_workspace_ownership', {
+        p_workspace_id: workspaceId,
+        p_new_owner: newOwnerId,
+      })
+      throwIf(error)
+    },
+
+    async deleteWorkspace(workspaceId, confirmationName) {
+      const { error } = await client().rpc('soft_delete_workspace', {
+        p_workspace_id: workspaceId,
+        p_confirmation: confirmationName,
+      })
+      throwIf(error)
+    },
+
     async getNotificationPreferences() {
       const userId = await currentUserId()
       const { data, error } = await client()

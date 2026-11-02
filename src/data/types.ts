@@ -110,4 +110,6 @@ export type DataProvider = {
   upsertCalendarShare: (input: CalendarShareInput) => Promise<CalendarShare>
   deleteCalendarShare: (shareId: string) => Promise<void>
   listAuditLog: (workspaceId: string) => Promise<WorkspaceAuditEntry[]>
+  transferWorkspaceOwnership: (workspaceId: string, newOwnerId: string) => Promise<void>
+  deleteWorkspace: (workspaceId: string, confirmationName: string) => Promise<void>
 }
