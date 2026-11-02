@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDataProvider } from '../data/provider'
-import type { EventInput } from '../types/domain'
+import type { EventInput, RsvpStatus } from '../types/domain'
 
 export function useCreateEvent() {
   const provider = useDataProvider()
@@ -42,6 +42,19 @@ export function useDeleteEvent() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['events'] })
       void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    },
+  })
+}
+
+export function useSetRsvp() {
+  const provider = useDataProvider()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (variables: { eventId: string; status: RsvpStatus }) =>
+      provider.setRsvp(variables.eventId, variables.status),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
     },
   })
 }

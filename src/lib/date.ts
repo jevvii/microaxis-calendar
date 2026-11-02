@@ -1,4 +1,4 @@
-import { formatInTimeZone } from 'date-fns-tz'
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz'
 import type { Event } from '../types/domain'
 
 export function dateKeyInTimeZone(value: string | Date, timeZone: string) {
@@ -54,4 +54,20 @@ export function daysBetweenDateKeys(startKey: string, endKey: string) {
 
 export function startOfDayInTimeZone(value: string | Date, timeZone: string) {
   return new Date(`${dateKeyInTimeZone(value, timeZone)}T00:00:00.000Z`)
+}
+
+export function toDateTimeLocal(value: string, timeZone: string) {
+  return formatInTimeZone(new Date(value), timeZone, "yyyy-MM-dd'T'HH:mm")
+}
+
+export function fromDateTimeLocal(value: string, timeZone: string) {
+  return fromZonedTime(value, timeZone).toISOString()
+}
+
+export function toDateInput(value: string, timeZone: string) {
+  return dateKeyInTimeZone(value, timeZone)
+}
+
+export function fromDateInput(value: string, timeZone: string) {
+  return fromZonedTime(`${value}T00:00:00`, timeZone).toISOString()
 }

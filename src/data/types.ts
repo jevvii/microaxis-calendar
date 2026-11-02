@@ -7,6 +7,7 @@ import type {
   Team,
   Workspace,
   WorkspaceMembership,
+  RsvpStatus,
 } from '../types/domain'
 
 export type EventRange = {
@@ -41,4 +42,5 @@ export type DataProvider = {
   deleteEvent: (eventId: string, expectedVersion: number) => Promise<DeleteEventResult>
   listNotifications: (workspaceId: string) => Promise<Notification[]>
   markNotificationRead: (notificationId: string) => Promise<void>
+  setRsvp: (eventId: string, status: RsvpStatus) => Promise<void>
 }

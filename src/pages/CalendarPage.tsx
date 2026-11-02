@@ -9,6 +9,7 @@ import {
 } from 'date-fns'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { EventDrawer } from '../components/event/EventDrawer'
 import { CalendarCanvas } from '../components/calendar/CalendarCanvas'
 import { CalendarEmptyState } from '../components/calendar/CalendarEmptyState'
 import { CalendarHeader } from '../components/calendar/CalendarHeader'
@@ -24,17 +25,38 @@ import { Skeleton } from '../components/ui/Skeleton'
 import { useCalendars } from '../hooks/useCalendars'
 import { useCategories } from '../hooks/useCategories'
 import { useEvents } from '../hooks/useEvents'
+import { useCreateEvent, useDeleteEvent, useSetRsvp, useUpdateEvent } from '../hooks/useEventMutations'
 import { expandRecurrence } from '../lib/recurrence'
 import { useAuth } from '../providers/AuthProvider'
-import { useToast } from '../providers/ToastProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
-import type { EventOccurrence } from '../types/domain'
+import type { Event, EventInput, EventOccurrence, EventStatus, RsvpStatus } from '../types/domain'
+import { calendarRole, canEditEvent } from '../lib/permissions'
 
 const FILTERS_KEY = 'microaxis-calendar-filters'
 const timeZone = 'Asia/Manila'
 
 function viewFrom(value: string | null): CalendarView {
   return value === 'month' || value === 'agenda' ? value : 'week'
+}
+
+function eventToInput(event: Event): EventInput {
+  return {
+    calendarId: event.calendarId,
+    title: event.title,
+    description: event.description ?? '',
+    location: event.location ?? '',
+    startsAt: event.startsAt,
+    endsAt: event.endsAt,
+    allDay: event.allDay,
+    timeZone: event.timeZone,
+    categoryId: event.categoryId,
+    priority: event.priority,
+    status: event.status,
+    visibility: event.visibility,
+    recurrenceRule: event.recurrenceRule,
+    recurrenceUntil: event.recurrenceUntil,
+    participantIds: event.participants?.map((participant) => participant.userId) ?? [],
+  }
 }
 
 function readFilters(): FilterState {
@@ -49,11 +71,24 @@ function readFilters(): FilterState {
 
 export function CalendarPage() {
   const { user } = useAuth()
-  const { activeWorkspace, activeWorkspaceId, loading: workspaceLoading, members, teams } =
-    useWorkspace()
-  const { toast } = useToast()
+  const {
+    activeWorkspace,
+    activeWorkspaceId,
+    loading: workspaceLoading,
+    members,
+    teams,
+    membership,
+  } = useWorkspace()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState<FilterState>(readFilters)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view')
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [conflict, setConflict] = useState<Event | null>(null)
+  const createEvent = useCreateEvent()
+  const updateEvent = useUpdateEvent()
+  const deleteEvent = useDeleteEvent()
+  const setRsvp = useSetRsvp()
 
   const selectedDate = searchParams.get('date')
     ? new Date(`${searchParams.get('date')}T00:00:00`)
@@ -129,11 +164,101 @@ export function CalendarPage() {
   }
 
   function openNewEvent() {
-    toast({
-      title: 'Event editor is next',
-      description: 'The create form is wired in the following pass.',
-      tone: 'info',
-    })
+    if (calendars.length === 0) return
+    setSelectedEvent(null)
+    setDrawerMode('create')
+    setConflict(null)
+    setDrawerOpen(true)
+  }
+
+  function openEvent(event: Event) {
+    setSelectedEvent(event)
+    setDrawerMode('view')
+    setConflict(null)
+    setDrawerOpen(true)
+  }
+
+  function handleSave(input: EventInput) {
+    if (drawerMode === 'create') {
+      createEvent.mutate(input, {
+        onSuccess: () => {
+          setDrawerOpen(false)
+          setSelectedEvent(null)
+        },
+      })
+      return
+    }
+
+    if (!selectedEvent) return
+    updateEvent.mutate(
+      { eventId: selectedEvent.id, input, expectedVersion: selectedEvent.version },
+      {
+        onSuccess: (result) => {
+          if (!result.ok) {
+            setConflict(result.current)
+            return
+          }
+          setSelectedEvent(result.event)
+          setDrawerMode('view')
+          setConflict(null)
+        },
+      },
+    )
+  }
+
+  function handleStatusChange(status: EventStatus) {
+    if (!selectedEvent) return
+    updateEvent.mutate(
+      {
+        eventId: selectedEvent.id,
+        input: { ...eventToInput(selectedEvent), status },
+        expectedVersion: selectedEvent.version,
+      },
+      {
+        onSuccess: (result) => {
+          if (!result.ok) {
+            setConflict(result.current)
+            return
+          }
+          setSelectedEvent(result.event)
+          setConflict(null)
+        },
+      },
+    )
+  }
+
+  function handleRsvp(status: RsvpStatus) {
+    if (!selectedEvent || !user) return
+    const respondedAt = new Date().toISOString()
+    const existing = selectedEvent.participants?.find(
+      (participant) => participant.userId === user.id,
+    )
+    const participants = existing
+      ? selectedEvent.participants?.map((participant) =>
+          participant.userId === user.id
+            ? { ...participant, status, respondedAt }
+            : participant,
+        )
+      : [
+          ...(selectedEvent.participants ?? []),
+          { eventId: selectedEvent.id, userId: user.id, status, respondedAt, profile: user },
+        ]
+
+    setSelectedEvent({ ...selectedEvent, participants })
+    setRsvp.mutate({ eventId: selectedEvent.id, status })
+  }
+
+  function handleDelete() {
+    if (!selectedEvent) return
+    deleteEvent.mutate(
+      { eventId: selectedEvent.id, expectedVersion: selectedEvent.version },
+      {
+        onSuccess: () => {
+          setDrawerOpen(false)
+          setSelectedEvent(null)
+        },
+      },
+    )
   }
 
   useEffect(() => {
@@ -206,6 +331,36 @@ export function CalendarPage() {
     ),
   ).length
 
+  const selectedCalendar = selectedEvent
+    ? calendars.find((calendar) => calendar.id === selectedEvent.calendarId) ?? null
+    : null
+  const selectedTeam = selectedCalendar?.teamId
+    ? teams.find((team) => team.id === selectedCalendar.teamId) ?? null
+    : null
+  const selectedTeamRole =
+    selectedTeam && user
+      ? selectedTeam.leadIds?.includes(user.id)
+        ? 'lead'
+        : 'member'
+      : null
+  const selectedCalendarRole = selectedCalendar && user
+    ? calendarRole(selectedCalendar, user.id, {
+        workspaceRole: membership?.role ?? null,
+        teamIds: selectedTeam ? [selectedTeam.id] : [],
+        teamRole: selectedTeamRole,
+      })
+    : null
+  const canEditSelected =
+    selectedEvent && user
+      ? canEditEvent(
+          selectedEvent,
+          selectedCalendarRole,
+          membership?.role ?? null,
+          selectedTeamRole,
+          user.id,
+        )
+      : false
+
   const title =
     view === 'week'
       ? 'This week'
@@ -248,20 +403,8 @@ export function CalendarPage() {
             date={selectedDate}
             events={occurrences}
             timeZone={timeZone}
-            onSelectEvent={(event: EventOccurrence) =>
-              toast({
-                title: event.title,
-                description: 'The event drawer opens in the next pass.',
-                tone: 'info',
-              })
-            }
-            onCreateAt={() =>
-              toast({
-                title: 'Event editor is next',
-                description: 'Double-click creation is wired with the event form.',
-                tone: 'info',
-              })
-            }
+            onSelectEvent={(event: EventOccurrence) => openEvent(event)}
+            onCreateAt={() => openNewEvent()}
           />
         </div>
       )}
@@ -276,6 +419,44 @@ export function CalendarPage() {
         <span className="text-line-strong">/</span>
         <span>Creator marks are always visible.</span>
       </div>
+
+      <EventDrawer
+        open={drawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open)
+          if (!open) {
+            setConflict(null)
+            setDrawerMode('view')
+          }
+        }}
+        mode={drawerMode}
+        event={selectedEvent}
+        calendars={calendars}
+        categories={categories}
+        members={members}
+        currentUserId={user?.id ?? ''}
+        canEdit={canEditSelected}
+        saving={createEvent.isPending || updateEvent.isPending}
+        deleting={deleteEvent.isPending}
+        conflict={conflict}
+        onEdit={() => setDrawerMode('edit')}
+        onCancelEdit={() => {
+          setDrawerMode('view')
+          setConflict(null)
+        }}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        onRsvp={handleRsvp}
+        onStatusChange={handleStatusChange}
+        onReviewConflict={() => {
+          if (conflict) {
+            setSelectedEvent(conflict)
+            setDrawerMode('view')
+            setConflict(null)
+          }
+        }}
+        onKeepDraft={() => setConflict(null)}
+      />
     </div>
   )
 }

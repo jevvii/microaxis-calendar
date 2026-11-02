@@ -4,6 +4,7 @@ import type {
   EventCategory,
   EventInput,
   Notification,
+  RsvpStatus,
   Team,
   Workspace,
   WorkspaceMembership,
@@ -369,6 +370,39 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           notification.id === notificationId && !notification.readAt
             ? { ...notification, readAt: new Date().toISOString() }
             : notification,
+        ),
+      })
+    },
+
+    async setRsvp(eventId: string, status: RsvpStatus) {
+      const event = state.events.find((item) => item.id === eventId)
+      if (!event) throw new Error('Event not found')
+
+      const respondedAt = new Date().toISOString()
+      const participants = event.participants ?? []
+      const existing = participants.find(
+        (participant) => participant.userId === state.currentUserId,
+      )
+      const nextParticipants = existing
+        ? participants.map((participant) =>
+            participant.userId === state.currentUserId
+              ? { ...participant, status, respondedAt }
+              : participant,
+          )
+        : [
+            ...participants,
+            {
+              eventId,
+              userId: state.currentUserId,
+              status,
+              respondedAt,
+            },
+          ]
+
+      saveState({
+        ...state,
+        events: state.events.map((item) =>
+          item.id === eventId ? { ...item, participants: nextParticipants } : item,
         ),
       })
     },

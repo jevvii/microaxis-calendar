@@ -27,6 +27,7 @@ function createUnconfiguredProvider(): DataProvider {
     deleteEvent: notConfigured,
     listNotifications: notConfigured,
     markNotificationRead: notConfigured,
+    setRsvp: notConfigured,
   }
 }
 

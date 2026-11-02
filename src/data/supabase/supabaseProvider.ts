@@ -472,5 +472,21 @@ export function createSupabaseProvider(): DataProvider {
         .eq('id', notificationId)
       throwIf(error)
     },
+
+    async setRsvp(eventId: string, status) {
+      const userId = await currentUserId()
+      const { error } = await client()
+        .from('event_participants')
+        .upsert(
+          {
+            event_id: eventId,
+            user_id: userId,
+            status,
+            responded_at: new Date().toISOString(),
+          },
+          { onConflict: 'event_id,user_id' },
+        )
+      throwIf(error)
+    },
   }
 }
