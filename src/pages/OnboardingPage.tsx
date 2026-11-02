@@ -14,7 +14,7 @@ import { Logo } from '../components/layout/Logo'
 export function OnboardingPage() {
   const provider = useDataProvider()
   const { user } = useAuth()
-  const { refresh } = useWorkspace()
+  const { refresh, setActiveWorkspaceId } = useWorkspace()
   const { toast } = useToast()
   const navigate = useNavigate()
   const [name, setName] = useState('')
@@ -32,10 +32,11 @@ export function OnboardingPage() {
 
     setSubmitting(true)
     try {
-      await provider.createWorkspace({
+      const created = await provider.createWorkspace({
         name: name.trim(),
         slug: slug.trim() || slugify(name),
       })
+      setActiveWorkspaceId(created.id)
       refresh()
       toast({ title: 'Workspace created', tone: 'success' })
       navigate('/app/calendar')
