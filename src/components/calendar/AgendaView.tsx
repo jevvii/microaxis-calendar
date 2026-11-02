@@ -47,9 +47,9 @@ export function AgendaView({
                     type="button"
                     onClick={() => onSelectEvent(event)}
                     aria-label={`${event.title}, created by ${creatorName}`}
-                    className="grid gap-3 rounded-panel border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong hover:bg-surface-2 sm:grid-cols-[8rem_1fr_auto] sm:items-center"
+                    className="grid gap-3 rounded-panel border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong hover:bg-surface-2 sm:grid-cols-[9.5rem_1fr_auto] sm:items-center"
                   >
-                    <span className="font-mono text-[11px] text-ink-3">
+                    <span className="whitespace-nowrap font-mono text-[11px] text-ink-3">
                       {event.allDay ? 'All day' : eventTimeLabel(event, timeZone, false)}
                     </span>
                     <span className="min-w-0">

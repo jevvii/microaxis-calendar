@@ -56,7 +56,7 @@ export function EventBand({
           />
         </div>
       ) : (
-        <span className="sr-only">
+        <span className="mt-1 block">
           <CreatorMark name={creatorName} avatarUrl={event.creator?.avatarUrl} size="xs" />
         </span>
       )}

@@ -95,7 +95,10 @@ export function createInitialDraft(
     ? initial.allDay
       ? toDateInput(addDaysToDateKey(toDateInput(initial.endsAt, timeZone), -1), timeZone)
       : toDateTimeLocal(initial.endsAt, timeZone)
-    : toDateTimeLocal(new Date(new Date(startValue).getTime() + 3_600_000).toISOString(), timeZone)
+    : toDateTimeLocal(
+        new Date(new Date(fromDateTimeLocal(startValue, timeZone)).getTime() + 3_600_000).toISOString(),
+        timeZone,
+      )
 
   return {
     calendarId: initial?.calendarId ?? calendars[0]?.id ?? '',

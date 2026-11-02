@@ -33,7 +33,7 @@ export function GoogleCalendarSettings({ calendars }: { calendars: Calendar[] })
         <div className="mt-4 flex items-start gap-2.5 rounded-panel border border-warning/25 bg-warning-wash p-4 text-warning">
           <WarningCircle size={16} className="mt-0.5 shrink-0" aria-hidden />
           <p className="text-xs leading-5">
-            Google export is not configured. Add `VITE_GOOGLE_CLIENT_ID` and the Google OAuth
+            Google export is not configured. Add VITE_GOOGLE_CLIENT_ID and the Google OAuth
             function secrets to enable it.
           </p>
         </div>

@@ -38,6 +38,8 @@ export function RecurrenceFields({
               min={1}
               max={99}
               value={draft.repeatInterval}
+              invalid={Boolean(intervalError)}
+              aria-describedby={intervalError ? 'event-repeat-interval-error' : undefined}
               onChange={(event) => onChange('repeatInterval', Number(event.target.value))}
             />
           </Field>
@@ -68,6 +70,8 @@ export function RecurrenceFields({
                 id="event-repeat-until"
                 type="date"
                 value={draft.repeatUntil}
+                invalid={Boolean(untilError)}
+                aria-describedby={untilError ? 'event-repeat-until-error' : undefined}
                 onChange={(event) => onChange('repeatUntil', event.target.value)}
               />
             </Field>

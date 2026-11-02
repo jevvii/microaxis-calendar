@@ -77,7 +77,9 @@ export function SettingsPage() {
               </p>
             </div>
           </div>
-          <Badge tone="accent">Default</Badge>
+          <Button variant="ghost" size="sm" onClick={() => navigate('/app/notifications')}>
+            Open
+          </Button>
         </div>
       </section>
 
@@ -90,7 +92,7 @@ export function SettingsPage() {
           <Warning size={16} className="mt-0.5 shrink-0 text-danger" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-danger">Delete account</p>
-            <p className="mt-1 text-xs leading-5 text-danger/85">
+            <p className="mt-1 text-xs leading-5 text-danger">
               You must transfer ownership of every workspace where you are the only Owner first.
             </p>
             <Button

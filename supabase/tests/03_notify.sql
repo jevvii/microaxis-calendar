@@ -16,6 +16,24 @@ begin
 end;
 $$;
 
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', false);
+
+do $$
+declare
+  v_export boolean;
+begin
+  select export_to_google into v_export
+  from public.calendar_visible_events
+  where id = '40000000-0000-4000-8000-000000000001';
+  if v_export is not true then
+    raise exception 'calendar_visible_events must expose export_to_google';
+  end if;
+end;
+$$;
+
+reset role;
+
 insert into public.notifications (
   id, workspace_id, user_id, type, title, dedupe_key
 )

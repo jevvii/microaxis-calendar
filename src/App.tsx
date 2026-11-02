@@ -1,7 +1,9 @@
 import { CircleNotch } from '@phosphor-icons/react'
+import { MotionConfig } from 'motion/react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/layout/AppLayout'
 import { Logo } from './components/layout/Logo'
+import { RouteAnnouncer } from './components/layout/RouteAnnouncer'
 import { DataProviderProvider } from './data/provider'
 import { AuthPage } from './pages/AuthPage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
@@ -48,7 +50,9 @@ function ProtectedRoute() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ThemeProvider>
+      <RouteAnnouncer />
+      <MotionConfig reducedMotion="user">
+        <ThemeProvider>
         <ToastProvider>
           <QueryProvider>
             <DataProviderProvider>
@@ -79,7 +83,8 @@ export default function App() {
             </DataProviderProvider>
           </QueryProvider>
         </ToastProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </BrowserRouter>
   )
 }

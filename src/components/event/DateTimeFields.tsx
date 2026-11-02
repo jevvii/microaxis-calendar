@@ -24,6 +24,7 @@ export function DateTimeFields({
           type={allDay ? 'date' : 'datetime-local'}
           value={allDay ? startValue.slice(0, 10) : startValue}
           onChange={(event) => onChange('startValue', event.target.value)}
+          invalid={Boolean(startError)}
           aria-describedby={startError ? 'event-start-error' : undefined}
         />
       </Field>
@@ -33,6 +34,7 @@ export function DateTimeFields({
           type={allDay ? 'date' : 'datetime-local'}
           value={allDay ? endValue.slice(0, 10) : endValue}
           onChange={(event) => onChange('endValue', event.target.value)}
+          invalid={Boolean(endError)}
           aria-describedby={endError ? 'event-end-error' : undefined}
         />
       </Field>

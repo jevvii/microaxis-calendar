@@ -11,6 +11,19 @@ const actionLabels: Record<string, string> = {
   delete: 'removed',
 }
 
+function targetLabel(targetType: string) {
+  const labels: Record<string, string> = {
+    workspace_members: 'a member',
+    calendars: 'a calendar',
+    teams: 'a team',
+    team_members: 'a team member',
+    calendar_shares: 'a calendar share',
+    event_categories: 'a category',
+    workspace_invites: 'an invitation',
+  }
+  return labels[targetType] ?? targetType.replaceAll('_', ' ')
+}
+
 export function AuditLog({
   entries,
   loading = false,
@@ -65,8 +78,8 @@ export function AuditLog({
                 <div className="min-w-0 flex-1">
                   <p className="text-[12px] leading-5 text-ink-2">
                     <span className="font-medium text-ink">{actorName}</span>{' '}
-                    {actionLabels[entry.action] ?? entry.action} a{' '}
-                    {entry.targetType.replaceAll('_', ' ')}
+                    {actionLabels[entry.action] ?? entry.action}{' '}
+                    {targetLabel(entry.targetType)}
                   </p>
                   <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.04em] text-ink-3">
                     {format(new Date(entry.createdAt), 'MMM d, yyyy · h:mm a')}

@@ -1,4 +1,4 @@
-import { Bell, MagnifyingGlass, Plus } from '@phosphor-icons/react'
+import { Bell, MagnifyingGlass } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useDataProvider } from '../../data/provider'
@@ -9,7 +9,6 @@ import { useWorkspace } from '../../providers/WorkspaceProvider'
 import { useToast } from '../../providers/ToastProvider'
 import type { Calendar } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
-import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
 import { NotificationPanel } from '../notifications/NotificationPanel'
@@ -113,12 +112,16 @@ export function AppLayout() {
           }))}
           activeCalendarId={activeCalendarId}
           unreadCount={unreadCount}
-          onSelectCalendar={(calendarId) =>
+          onSelectCalendar={(calendarId) => {
+            if (!location.pathname.includes('/calendar')) {
+              navigate(`/app/calendar?calendar=${calendarId}`)
+              return
+            }
             updateParams({
               calendar: activeCalendarId === calendarId ? null : calendarId,
             })
-          }
-          onNewEvent={() => updateParams({ new: '1' })}
+          }}
+          onNewEvent={() => navigate('/app/calendar?new=1')}
         />
       }
       topbar={
@@ -172,9 +175,6 @@ export function AppLayout() {
                 </PopoverContent>
               </Popover>
               <ThemeToggle />
-              <Button size="sm" variant="primary" leadingIcon={<Plus size={14} weight="bold" aria-hidden />} onClick={() => updateParams({ new: '1' })}>
-                <span className="hidden sm:inline">New event</span>
-              </Button>
               <Avatar name={user?.fullName ?? 'Signed-in user'} src={user?.avatarUrl} size="sm" />
             </>
           }

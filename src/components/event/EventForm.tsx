@@ -73,7 +73,14 @@ export function EventForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const input = validate()
-    if (input) onSubmit(input)
+    if (input) {
+      onSubmit(input)
+      return
+    }
+    requestAnimationFrame(() => {
+      const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+      firstInvalid?.focus()
+    })
   }
 
   return (
@@ -82,6 +89,8 @@ export function EventForm({
         <Select
           id="event-calendar"
           value={draft.calendarId}
+          invalid={Boolean(errors.calendarId)}
+          aria-describedby={errors.calendarId ? 'event-calendar-error' : undefined}
           onChange={(event) => setField('calendarId', event.target.value)}
         >
           {calendars.map((calendar) => (
@@ -189,6 +198,7 @@ export function EventForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Visibility" htmlFor="event-visibility">
           <VisibilityControl
+            id="event-visibility"
             value={draft.visibility}
             onChange={(visibility: EventVisibility) => setField('visibility', visibility)}
           />

@@ -107,7 +107,7 @@ export function EventDrawer({
         >
           <div className="flex min-h-14 items-center justify-between gap-3 border-b border-line px-4">
             <DialogPrimitive.Title className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em]">
-              {mode === 'create' ? 'New event' : mode === 'edit' ? 'Edit event' : event?.title ?? 'Event'}
+              {mode === 'create' ? 'New event' : mode === 'edit' ? 'Edit event' : 'Event details'}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="sr-only">
               Event details and collaboration controls.

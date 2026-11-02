@@ -25,6 +25,7 @@ import { Skeleton } from '../components/ui/Skeleton'
 import { useCalendars } from '../hooks/useCalendars'
 import { useCategories } from '../hooks/useCategories'
 import { useEvents } from '../hooks/useEvents'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { useCreateEvent, useDeleteEvent, useSetRsvp, useUpdateEvent } from '../hooks/useEventMutations'
 import { expandRecurrence } from '../lib/recurrence'
@@ -98,7 +99,12 @@ export function CalendarPage() {
   const selectedDate = searchParams.get('date')
     ? new Date(`${searchParams.get('date')}T00:00:00`)
     : new Date()
-  const view = viewFrom(searchParams.get('view'))
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  const view = searchParams.get('view')
+    ? viewFrom(searchParams.get('view'))
+    : isMobile
+      ? 'agenda'
+      : 'week'
   const calendarFilter = searchParams.get('calendar')
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
@@ -162,6 +168,17 @@ export function CalendarPage() {
     }
     void readCachedEventSummaries(rangeStartIso, rangeEndIso).then(setCachedSummaries)
   }, [online, rangeEndIso, rangeStartIso])
+
+  useEffect(() => {
+    if (searchParams.get('new') !== '1' || !online || calendars.length === 0) return
+    setSelectedEvent(null)
+    setDrawerMode('create')
+    setConflict(null)
+    setDrawerOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('new')
+    setSearchParams(next, { replace: true })
+  }, [calendars.length, online, searchParams, setSearchParams])
 
   function updateParams(patch: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams)

@@ -42,7 +42,7 @@ export function DangerZone({
           <Warning size={16} className="mt-0.5 shrink-0 text-danger" aria-hidden />
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-danger">Delete this workspace</h3>
-            <p className="mt-1 text-xs leading-5 text-danger/85">
+            <p className="mt-1 text-xs leading-5 text-danger">
               The workspace is hidden immediately and purged after 30 days. Export anything you
               need first.
             </p>

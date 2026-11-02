@@ -62,7 +62,7 @@ export function MonthView({
               <div className="flex items-baseline justify-between px-1 py-1">
                 <span
                   className={`font-mono text-[11px] ${
-                    isToday ? 'font-medium text-accent' : outsideMonth ? 'text-ink-3/60' : 'text-ink-3'
+                    isToday ? 'font-medium text-accent' : 'text-ink-3'
                   }`}
                 >
                   {format(day, 'd')}

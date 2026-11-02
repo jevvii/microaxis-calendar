@@ -156,7 +156,7 @@ export function WeekView({
                   <div
                     className="pointer-events-none absolute left-0 right-0 z-10"
                     style={{ top: `${(nowMinutes / 1440) * 100}%` }}
-                    aria-label="Current time"
+                    aria-hidden="true"
                   >
                     <span className="absolute -left-1 -top-1 size-2 rounded-full bg-accent" />
                     <span className="block h-px bg-accent" />
@@ -189,17 +189,17 @@ export function WeekView({
                         className="absolute inset-y-0 left-0 w-0.5"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="block pl-2 pr-1.5 pt-1">
+                      <span className="absolute right-1 top-1 z-10">
+                        <CreatorMark
+                          name={creatorName}
+                          avatarUrl={event.creator?.avatarUrl}
+                          size="xs"
+                        />
+                      </span>
+                      <span className="block pl-2 pr-8 pt-1">
                         <span className="block truncate font-mono text-[8px] text-ink-3">{time}</span>
-                        <span className="mt-0.5 block line-clamp-2 text-[10px] font-medium leading-3.5 text-ink">
+                        <span className="mt-0.5 block line-clamp-2 text-[10px] font-medium leading-[14px] text-ink">
                           {event.title}
-                        </span>
-                        <span className="mt-1 block">
-                          <CreatorMark
-                            name={creatorName}
-                            avatarUrl={event.creator?.avatarUrl}
-                            size="xs"
-                          />
                         </span>
                       </span>
                     </button>

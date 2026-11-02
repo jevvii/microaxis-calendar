@@ -215,7 +215,8 @@ export function WorkspacePage() {
                     <span className="size-2.5 rounded-full" style={{ backgroundColor: team.color }} />
                   </div>
                   <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.05em] text-ink-3">
-                    {team.memberCount ?? 0} members · {team.leadIds?.length ?? 0} leads
+                    {team.memberCount ?? 0} members · {team.leadIds?.length ?? 0}{' '}
+                    {(team.leadIds?.length ?? 0) === 1 ? 'lead' : 'leads'}
                   </p>
                 </button>
               ))}
@@ -254,7 +255,8 @@ export function WorkspacePage() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-ink">{calendar.name}</p>
                     <p className="text-xs text-ink-3">
-                      {calendar.kind} · {calendar.shares?.length ?? 0} shares
+                      {calendar.kind} · {calendar.shares?.length ?? 0}{' '}
+                      {(calendar.shares?.length ?? 0) === 1 ? 'share' : 'shares'}
                     </p>
                   </div>
                   <Button

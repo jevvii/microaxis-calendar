@@ -9,7 +9,7 @@
   --surface-3: #f1f0ea;
   --ink: #141411;
   --ink-2: #4d4d45;
-  --ink-3: #76766c;
+  --ink-3: #66665c;
   --line: #e5e4dc;
   --line-strong: #d4d3c9;
   --accent: #0c7a43;
@@ -122,6 +122,7 @@
 }
 
 html {
+  scroll-padding-top: 4rem;
   background: var(--canvas);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
