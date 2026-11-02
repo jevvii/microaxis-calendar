@@ -21,6 +21,8 @@ type Connection = {
 
 type EventRow = MicroaxisGoogleEvent & {
   calendar_id: string
+  created_by: string | null
+  visibility: 'calendar' | 'participants' | 'private'
   export_to_google: boolean
 }
 
@@ -125,7 +127,7 @@ Deno.serve(async (request) => {
       const { data: activeEvents, error: eventError } = await admin
         .from('events')
         .select(
-          'id, calendar_id, title, description, location, starts_at, ends_at, all_day, time_zone, recurrence_rule, status, deleted_at, export_to_google',
+          'id, calendar_id, created_by, visibility, title, description, location, starts_at, ends_at, all_day, time_zone, recurrence_rule, status, deleted_at, export_to_google',
         )
         .in('calendar_id', calendarIds)
         .is('deleted_at', null)
@@ -141,7 +143,30 @@ Deno.serve(async (request) => {
 
       if (mappingError) throw new Error(mappingError.message)
 
-      const activeIds = new Set((activeEvents ?? []).map((event) => event.id))
+      const eventIds = (activeEvents ?? []).map((event) => event.id)
+      const { data: participantRows } = eventIds.length
+        ? await admin
+            .from('event_participants')
+            .select('event_id')
+            .eq('user_id', connection.user_id)
+            .in('event_id', eventIds)
+        : { data: [] }
+      const participantEventIds = new Set(
+        (participantRows ?? []).map((row: { event_id: string }) => row.event_id),
+      )
+
+      const visibleEvents = (activeEvents ?? []).filter((event) => {
+        if (event.visibility === 'private') return event.created_by === connection.user_id
+        if (event.visibility === 'participants') {
+          return (
+            event.created_by === connection.user_id ||
+            participantEventIds.has(event.id)
+          )
+        }
+        return true
+      })
+
+      const activeIds = new Set(visibleEvents.map((event) => event.id))
       for (const mapping of mappings ?? []) {
         if (!activeIds.has(mapping.event_id)) {
           await deleteGoogleEvent(
@@ -153,7 +178,7 @@ Deno.serve(async (request) => {
         }
       }
 
-      for (const event of activeEvents ?? []) {
+      for (const event of visibleEvents) {
         const existing = (mappings ?? []).find(
           (mapping) => mapping.event_id === event.id,
         )
