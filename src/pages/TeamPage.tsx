@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useCalendars } from '../hooks/useCalendars'
 import { useWorkspaceAdmin } from '../hooks/useWorkspaceAdmin'
+import { useToast } from '../providers/ToastProvider'
 import { useAuth } from '../providers/AuthProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 
@@ -17,6 +18,7 @@ export function TeamPage() {
   const { teams, members, membership, activeWorkspaceId } = useWorkspace()
   const calendarsQuery = useCalendars(activeWorkspaceId)
   const admin = useWorkspaceAdmin(activeWorkspaceId)
+  const { toast } = useToast()
   const [editorOpen, setEditorOpen] = useState(false)
   const team = teams.find((item) => item.id === teamId)
 
@@ -112,12 +114,29 @@ export function TeamPage() {
         onSave={(input) =>
           admin.updateTeam.mutate(
             { teamId: team.id, input },
-            { onSuccess: () => setEditorOpen(false) },
+            {
+              onSuccess: () => setEditorOpen(false),
+              onError: (reason) =>
+                toast({
+                  title: 'Could not save the team',
+                  description: reason instanceof Error ? reason.message : 'Try again.',
+                  tone: 'error',
+                }),
+            },
           )
         }
         onDelete={
           isWorkspaceAdmin
-            ? () => admin.deleteTeam.mutate(team.id, { onSuccess: () => setEditorOpen(false) })
+            ? () =>
+                admin.deleteTeam.mutate(team.id, {
+                  onSuccess: () => setEditorOpen(false),
+                  onError: (reason) =>
+                    toast({
+                      title: 'Could not delete the team',
+                      description: reason instanceof Error ? reason.message : 'Try again.',
+                      tone: 'error',
+                    }),
+                })
             : undefined
         }
       />

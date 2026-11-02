@@ -72,17 +72,12 @@ export function usePushSubscription() {
 
       if (!keys?.p256dh || !keys?.auth) throw new Error('Push subscription did not include keys')
 
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        {
-          user_id: user.id,
-          endpoint: subscription.endpoint,
-          p256dh: keys.p256dh,
-          auth: keys.auth,
-          user_agent: navigator.userAgent,
-          last_used_at: new Date().toISOString(),
-        },
-        { onConflict: 'endpoint' },
-      )
+      const { error } = await supabase.rpc('save_push_subscription', {
+        p_endpoint: subscription.endpoint,
+        p_p256dh: keys.p256dh,
+        p_auth: keys.auth,
+        p_user_agent: navigator.userAgent,
+      })
 
       if (error) throw error
       setStatus('granted')

@@ -63,6 +63,15 @@ export function WorkspacePage() {
   const categories = categoriesQuery.data ?? []
   const canManage = membership?.role === 'owner' || membership?.role === 'admin'
   const isOwner = membership?.role === 'owner'
+
+  function mutationError(title: string, reason: unknown) {
+    toast({
+      title,
+      description: reason instanceof Error ? reason.message : 'Try again.',
+      tone: 'error',
+      duration: 8000,
+    })
+  }
   const editingTeam = teamEditorId ? teams.find((team) => team.id === teamEditorId) ?? null : null
   const settingsCalendar = calendars.find((calendar) => calendar.id === settingsCalendarId) ?? null
   const shareCalendar = calendars.find((calendar) => calendar.id === shareCalendarId) ?? null
@@ -167,8 +176,20 @@ export function WorkspacePage() {
               members={members}
               currentUserId={user?.id ?? ''}
               canManage={canManage}
-              onRoleChange={(userId, role) => admin.updateMember.mutate({ userId, role })}
-              onRemove={(userId) => admin.removeMember.mutate(userId)}
+              onRoleChange={(userId, role) =>
+                admin.updateMember.mutate(
+                  { userId, role },
+                  {
+                    onError: (reason) =>
+                      mutationError('Could not change the member role', reason),
+                  },
+                )
+              }
+              onRemove={(userId) =>
+                admin.removeMember.mutate(userId, {
+                  onError: (reason) => mutationError('Could not remove the member', reason),
+                })
+              }
             />
           </section>
         ) : null}
@@ -445,10 +466,16 @@ export function WorkspacePage() {
           if (editingTeam) {
             admin.updateTeam.mutate(
               { teamId: editingTeam.id, input },
-              { onSuccess: () => setTeamEditorOpen(false) },
+              {
+                onSuccess: () => setTeamEditorOpen(false),
+                onError: (reason) => mutationError('Could not save the team', reason),
+              },
             )
           } else {
-            admin.createTeam.mutate(input, { onSuccess: () => setTeamEditorOpen(false) })
+            admin.createTeam.mutate(input, {
+              onSuccess: () => setTeamEditorOpen(false),
+              onError: (reason) => mutationError('Could not create the team', reason),
+            })
           }
         }}
         onDelete={
@@ -456,6 +483,7 @@ export function WorkspacePage() {
             ? () => {
                 admin.deleteTeam.mutate(editingTeam.id, {
                   onSuccess: () => setTeamEditorOpen(false),
+                  onError: (reason) => mutationError('Could not delete the team', reason),
                 })
               }
             : undefined
@@ -472,6 +500,7 @@ export function WorkspacePage() {
           onCreate={(input) =>
             admin.createCalendar.mutate(input, {
               onSuccess: () => setCalendarCreateOpen(false),
+              onError: (reason) => mutationError('Could not create the calendar', reason),
             })
           }
         />
@@ -488,19 +517,27 @@ export function WorkspacePage() {
           onSave={(input) =>
             calendarAdmin.updateCalendar.mutate(
               { calendarId: settingsCalendar.id, input },
-              { onSuccess: () => setSettingsCalendarId(null) },
+              {
+                onSuccess: () => setSettingsCalendarId(null),
+                onError: (reason) => mutationError('Could not save the calendar', reason),
+              },
             )
           }
           onDelete={() =>
             calendarAdmin.deleteCalendar.mutate(settingsCalendar.id, {
               onSuccess: () => setSettingsCalendarId(null),
+              onError: (reason) => mutationError('Could not delete the calendar', reason),
             })
           }
           onShare={() => {
             setShareCalendarId(settingsCalendar.id)
             setSettingsCalendarId(null)
           }}
-          onRevoke={(shareId) => calendarAdmin.deleteShare.mutate(shareId)}
+          onRevoke={(shareId) =>
+            calendarAdmin.deleteShare.mutate(shareId, {
+              onError: (reason) => mutationError('Could not revoke the share', reason),
+            })
+          }
         />
       ) : null}
 
@@ -515,9 +552,14 @@ export function WorkspacePage() {
           onShare={(input) =>
             calendarAdmin.upsertShare.mutate(input, {
               onSuccess: () => setShareCalendarId(null),
+              onError: (reason) => mutationError('Could not share the calendar', reason),
             })
           }
-          onRevoke={(shareId) => calendarAdmin.deleteShare.mutate(shareId)}
+          onRevoke={(shareId) =>
+            calendarAdmin.deleteShare.mutate(shareId, {
+              onError: (reason) => mutationError('Could not revoke the share', reason),
+            })
+          }
         />
       ) : null}
     </div>

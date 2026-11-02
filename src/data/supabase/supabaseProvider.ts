@@ -168,6 +168,17 @@ async function getTeamById(teamId: string): Promise<Team> {
   return mapTeamRow(data)
 }
 
+async function getCalendarKind(calendarId: string): Promise<CalendarKind> {
+  const { data, error } = await client()
+    .from('calendars')
+    .select('kind')
+    .eq('id', calendarId)
+    .single<{ kind: CalendarKind }>()
+
+  throwIf(error)
+  return data?.kind ?? 'shared'
+}
+
 async function getCalendarById(calendarId: string): Promise<Calendar> {
   const { data, error } = await client()
     .from('calendars')
@@ -372,22 +383,14 @@ export function createSupabaseProvider(): DataProvider {
       input: EventInput,
       expectedVersion: number,
     ): Promise<UpdateEventResult> {
-      const { data: calendar, error: calendarError } = await client()
-        .from('calendars')
-        .select('id, workspace_id, kind')
-        .eq('id', input.calendarId)
-        .single<{ id: string; workspace_id: string; kind: CalendarKind }>()
-
-      throwIf(calendarError)
-      if (!calendar) throw new Error('Calendar not found')
-
-      const { data, error } = await client()
-        .from('events')
-        .update({
-          calendar_id: calendar.id,
+      const { data, error } = await client().rpc('update_event', {
+        p_event_id: eventId,
+        p_expected_version: expectedVersion,
+        p_payload: {
+          calendar_id: input.calendarId,
           title: input.title,
-          description: input.description || null,
-          location: input.location || null,
+          description: input.description ?? '',
+          location: input.location ?? '',
           starts_at: input.startsAt,
           ends_at: input.endsAt,
           all_day: input.allDay,
@@ -396,93 +399,68 @@ export function createSupabaseProvider(): DataProvider {
           priority: input.priority,
           status: input.status ?? 'scheduled',
           visibility: input.visibility,
-          export_to_google: input.exportToGoogle ?? true,
           recurrence_rule: input.recurrenceRule ?? null,
           recurrence_until: input.recurrenceUntil ?? null,
-        })
-        .eq('id', eventId)
-        .eq('version', expectedVersion)
-        .select('*')
-        .maybeSingle<EventRow>()
+          participant_ids: input.participantIds ?? [],
+          export_to_google: input.exportToGoogle ?? true,
+        },
+      })
 
       throwIf(error)
+      const result = data as {
+        ok?: boolean
+        conflict?: boolean
+        event?: EventRow
+        calendar_kind?: CalendarKind
+        current?: EventRow | null
+      } | null
 
-      if (!data) {
-        const { data: current } = await client()
-          .from('events')
-          .select('*')
-          .eq('id', eventId)
-          .maybeSingle<EventRow>()
-
+      if (!result?.ok) {
+        const current = result?.current
         return {
           ok: false,
           conflict: true,
           current: current
-            ? await hydrateEvent(current, calendar.kind)
+            ? await hydrateEvent(current, await getCalendarKind(current.calendar_id))
             : null,
         }
       }
 
-      const { data: existingParticipants } = await client()
-        .from('event_participants')
-        .select('user_id, status, responded_at')
-        .eq('event_id', eventId)
-
-      const existing = new Map(
-        ((existingParticipants ?? []) as Array<{
-          user_id: string
-          status: 'going' | 'maybe' | 'declined' | 'no_response'
-          responded_at: string | null
-        }>).map((participant) => [participant.user_id, participant]),
-      )
-
-      const participantIds = [...new Set(input.participantIds ?? [])]
-      const { error: deleteError } = await client()
-        .from('event_participants')
-        .delete()
-        .eq('event_id', eventId)
-      throwIf(deleteError)
-
-      if (participantIds.length > 0) {
-        const { error: participantError } = await client()
-          .from('event_participants')
-          .insert(
-            participantIds.map((participantId) => ({
-              event_id: eventId,
-              user_id: participantId,
-              status: existing.get(participantId)?.status ?? 'no_response',
-              responded_at: existing.get(participantId)?.responded_at ?? null,
-            })),
-          )
-        throwIf(participantError)
+      if (!result.event) throw new Error('The event could not be updated')
+      return {
+        ok: true,
+        event: await hydrateEvent(
+          result.event,
+          result.calendar_kind ?? (await getCalendarKind(result.event.calendar_id)),
+        ),
       }
-
-      return { ok: true, event: await hydrateEvent(data, calendar.kind) }
     },
 
     async deleteEvent(eventId: string, expectedVersion: number): Promise<DeleteEventResult> {
-      const { data, error } = await client()
-        .from('events')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', eventId)
-        .eq('version', expectedVersion)
-        .select('id')
-        .maybeSingle<{ id: string }>()
+      const { data, error } = await client().rpc('delete_event', {
+        p_event_id: eventId,
+        p_expected_version: expectedVersion,
+      })
 
       throwIf(error)
-      if (data) return { ok: true }
+      const result = data as {
+        ok?: boolean
+        conflict?: boolean
+        current?: EventRow | null
+      } | null
 
-      const { data: current } = await client()
-        .from('events')
-        .select('id, workspace_id, calendar_id, created_by, title, description, location, starts_at, ends_at, all_day, time_zone, category_id, priority, status, visibility, recurrence_rule, recurrence_until, recurrence_exceptions, version, created_at, updated_at, deleted_at')
-        .eq('id', eventId)
-        .maybeSingle<EventRow>()
-
-      return {
-        ok: false,
-        conflict: true,
-        current: current ? mapEventRow(current, 'shared') : null,
+      if (!result?.ok) {
+        const current = result?.current
+        return {
+          ok: false,
+          conflict: true,
+          current: current
+            ? mapEventRow(current, await getCalendarKind(current.calendar_id))
+            : null,
+        }
       }
+
+      return { ok: true }
     },
 
     async listNotifications(workspaceId: string): Promise<Notification[]> {
@@ -497,10 +475,9 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async markNotificationRead(notificationId: string) {
-      const { error } = await client()
-        .from('notifications')
-        .update({ read_at: new Date().toISOString() })
-        .eq('id', notificationId)
+      const { error } = await client().rpc('mark_notification_read', {
+        p_notification_id: notificationId,
+      })
       throwIf(error)
     },
 
@@ -519,54 +496,31 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async createComment(eventId: string, body: string): Promise<EventComment> {
-      const userId = await currentUserId()
-      const { data: event, error: eventError } = await client()
-        .from('events')
-        .select('workspace_id')
-        .eq('id', eventId)
-        .single<{ workspace_id: string }>()
-
-      throwIf(eventError)
-      if (!event) throw new Error('Event not found')
-
-      const { data, error } = await client()
-        .from('event_comments')
-        .insert({
-          workspace_id: event.workspace_id,
-          event_id: eventId,
-          author_id: userId,
-          body: body.trim(),
-        })
-        .select(
-          'id, workspace_id, event_id, author_id, body, created_at, updated_at, deleted_at, author:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
-        )
-        .single<EventCommentRow>()
+      const { data, error } = await client().rpc('create_comment', {
+        p_event_id: eventId,
+        p_body: body.trim(),
+      })
 
       throwIf(error)
       if (!data) throw new Error('The comment could not be created')
-      return mapEventCommentRow(data)
+      return mapEventCommentRow(data as EventCommentRow)
     },
 
     async updateComment(commentId: string, body: string): Promise<EventComment> {
-      const { data, error } = await client()
-        .from('event_comments')
-        .update({ body: body.trim() })
-        .eq('id', commentId)
-        .select(
-          'id, workspace_id, event_id, author_id, body, created_at, updated_at, deleted_at, author:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
-        )
-        .single<EventCommentRow>()
+      const { data, error } = await client().rpc('update_comment', {
+        p_comment_id: commentId,
+        p_body: body.trim(),
+      })
 
       throwIf(error)
       if (!data) throw new Error('The comment could not be updated')
-      return mapEventCommentRow(data)
+      return mapEventCommentRow(data as EventCommentRow)
     },
 
     async deleteComment(commentId: string) {
-      const { error } = await client()
-        .from('event_comments')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', commentId)
+      const { error } = await client().rpc('delete_comment', {
+        p_comment_id: commentId,
+      })
       throwIf(error)
     },
 
@@ -588,7 +542,6 @@ export function createSupabaseProvider(): DataProvider {
       const validationError = validateAttachmentFile(file)
       if (validationError) throw new Error(validationError)
 
-      const userId = await currentUserId()
       const uploadFile =
         file.type.startsWith('image/') && file.size > 1024 * 1024
           ? await compressImage(file)
@@ -604,47 +557,35 @@ export function createSupabaseProvider(): DataProvider {
         })
       throwIf(uploadError)
 
-      const { data, error } = await client()
-        .from('event_attachments')
-        .insert({
-          workspace_id: workspaceId,
-          event_id: eventId,
-          uploaded_by: userId,
-          storage_path: storagePath,
-          file_name: file.name,
-          mime_type: uploadFile.type,
-          size_bytes: uploadFile.size,
-        })
-        .select(
-          'id, workspace_id, event_id, uploaded_by, storage_path, file_name, mime_type, size_bytes, created_at, deleted_at, uploader:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
-        )
-        .single<EventAttachmentRow>()
+      const { data, error } = await client().rpc('create_attachment', {
+        p_workspace_id: workspaceId,
+        p_event_id: eventId,
+        p_storage_path: storagePath,
+        p_file_name: file.name,
+        p_mime_type: uploadFile.type,
+        p_size_bytes: uploadFile.size,
+      })
 
-      throwIf(error)
+      if (error) {
+        await client().storage.from('event-attachments').remove([storagePath])
+        throw new Error(error.message)
+      }
       if (!data) throw new Error('The attachment could not be saved')
-      return mapEventAttachmentRow(data)
+      return mapEventAttachmentRow(data as EventAttachmentRow)
     },
 
     async deleteAttachment(attachmentId: string) {
-      const { data: attachment, error: fetchError } = await client()
-        .from('event_attachments')
-        .select('storage_path')
-        .eq('id', attachmentId)
-        .single<{ storage_path: string }>()
-
-      throwIf(fetchError)
-      if (!attachment) throw new Error('Attachment not found')
-
-      const { error: storageError } = await client()
-        .storage.from('event-attachments')
-        .remove([attachment.storage_path])
-      throwIf(storageError)
-
-      const { error } = await client()
-        .from('event_attachments')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', attachmentId)
+      const { data, error } = await client().rpc('delete_attachment', {
+        p_attachment_id: attachmentId,
+      })
       throwIf(error)
+
+      if (data) {
+        const { error: storageError } = await client()
+          .storage.from('event-attachments')
+          .remove([data as string])
+        throwIf(storageError)
+      }
     },
 
     async getAttachmentUrl(storagePath: string) {
@@ -669,201 +610,127 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async updateWorkspaceMember(workspaceId, userId, role) {
-      const { error } = await client()
-        .from('workspace_members')
-        .update({ role })
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId)
+      const { error } = await client().rpc('update_workspace_member', {
+        p_workspace_id: workspaceId,
+        p_user_id: userId,
+        p_role: role,
+      })
       throwIf(error)
     },
 
     async removeWorkspaceMember(workspaceId, userId) {
-      const { error } = await client()
-        .from('workspace_members')
-        .delete()
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId)
+      const { error } = await client().rpc('remove_workspace_member', {
+        p_workspace_id: workspaceId,
+        p_user_id: userId,
+      })
       throwIf(error)
     },
 
     async createTeam(workspaceId: string, input: TeamAdminInput) {
-      const userId = await currentUserId()
-      const { data, error } = await client()
-        .from('teams')
-        .insert({
-          workspace_id: workspaceId,
-          name: input.name,
-          description: input.description || null,
-          color: input.color,
-          created_by: userId,
-        })
-        .select('id')
-        .single<{ id: string }>()
+      const { data, error } = await client().rpc('save_team', {
+        p_team_id: null,
+        p_workspace_id: workspaceId,
+        p_name: input.name,
+        p_description: input.description,
+        p_color: input.color,
+        p_lead_ids: input.leadIds,
+        p_member_ids: input.memberIds,
+      })
 
       throwIf(error)
       if (!data) throw new Error('The team could not be created')
-
-      const leadIds = [...new Set(input.leadIds)]
-      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
-      if (leadIds.length + memberIds.length > 0) {
-        const { error: memberError } = await client().from('team_members').insert([
-          ...leadIds.map((memberId) => ({
-            team_id: data.id,
-            user_id: memberId,
-            role: 'lead',
-          })),
-          ...memberIds.map((memberId) => ({
-            team_id: data.id,
-            user_id: memberId,
-            role: 'member',
-          })),
-        ])
-        throwIf(memberError)
-      }
-      return getTeamById(data.id)
+      return getTeamById(data as string)
     },
 
     async updateTeam(teamId: string, input: TeamAdminInput) {
-      const { error } = await client()
+      const { data: team, error: teamError } = await client()
         .from('teams')
-        .update({
-          name: input.name,
-          description: input.description || null,
-          color: input.color,
-        })
+        .select('workspace_id')
         .eq('id', teamId)
+        .single<{ workspace_id: string }>()
+
+      throwIf(teamError)
+      if (!team) throw new Error('Team not found')
+
+      const { error } = await client().rpc('save_team', {
+        p_team_id: teamId,
+        p_workspace_id: team.workspace_id,
+        p_name: input.name,
+        p_description: input.description,
+        p_color: input.color,
+        p_lead_ids: input.leadIds,
+        p_member_ids: input.memberIds,
+      })
+
       throwIf(error)
-
-      const { error: deleteError } = await client()
-        .from('team_members')
-        .delete()
-        .eq('team_id', teamId)
-      throwIf(deleteError)
-
-      const leadIds = [...new Set(input.leadIds)]
-      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
-      if (leadIds.length + memberIds.length > 0) {
-        const { error: memberError } = await client().from('team_members').insert([
-          ...leadIds.map((memberId) => ({
-            team_id: teamId,
-            user_id: memberId,
-            role: 'lead',
-          })),
-          ...memberIds.map((memberId) => ({
-            team_id: teamId,
-            user_id: memberId,
-            role: 'member',
-          })),
-        ])
-        throwIf(memberError)
-      }
-
       return getTeamById(teamId)
     },
 
     async deleteTeam(teamId: string) {
-      const { error } = await client()
-        .from('teams')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', teamId)
+      const { error } = await client().rpc('delete_team', {
+        p_team_id: teamId,
+      })
       throwIf(error)
     },
 
     async createCalendar(input: CalendarAdminInput) {
-      const userId = await currentUserId()
-      const { data, error } = await client()
-        .from('calendars')
-        .insert({
-          workspace_id: input.workspaceId,
-          owner_id: input.kind === 'personal' ? userId : null,
-          team_id: input.kind === 'team' ? input.teamId ?? null : null,
-          name: input.name,
-          description: input.description || null,
-          kind: input.kind,
-          color: input.color,
-          visibility:
-            input.kind === 'personal'
-              ? 'private'
-              : input.kind === 'team'
-                ? 'team'
-                : 'workspace',
-          created_by: userId,
-        })
-        .select('id')
-        .single<{ id: string }>()
+      const { data, error } = await client().rpc('create_calendar', {
+        p_workspace_id: input.workspaceId,
+        p_name: input.name,
+        p_description: input.description,
+        p_kind: input.kind,
+        p_team_id: input.kind === 'team' ? input.teamId ?? null : null,
+        p_color: input.color,
+      })
 
       throwIf(error)
       if (!data) throw new Error('The calendar could not be created')
-      return getCalendarById(data.id)
+      return getCalendarById(data as string)
     },
 
     async updateCalendar(calendarId, input) {
-      const { error } = await client()
-        .from('calendars')
-        .update({
-          name: input.name,
-          description: input.description || null,
-          color: input.color,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', calendarId)
+      const { error } = await client().rpc('update_calendar', {
+        p_calendar_id: calendarId,
+        p_name: input.name,
+        p_description: input.description,
+        p_color: input.color,
+      })
       throwIf(error)
       return getCalendarById(calendarId)
     },
 
     async deleteCalendar(calendarId) {
-      const { error } = await client()
-        .from('calendars')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', calendarId)
+      const { error } = await client().rpc('delete_calendar', {
+        p_calendar_id: calendarId,
+      })
       throwIf(error)
     },
 
     async upsertCalendarShare(input: CalendarShareInput) {
-      const { error } = await client()
-        .from('calendar_shares')
-        .upsert(
-          {
-            calendar_id: input.calendarId,
-            subject_type: input.subjectType,
-            subject_id: input.subjectId,
-            role: input.role,
-            hide_details: input.hideDetails,
-            created_by: (await currentUserId()),
-          },
-          { onConflict: 'calendar_id,subject_type,subject_id' },
-        )
+      const { data, error } = await client().rpc('upsert_calendar_share', {
+        p_calendar_id: input.calendarId,
+        p_subject_type: input.subjectType,
+        p_subject_id: input.subjectId,
+        p_role: input.role,
+        p_hide_details: input.hideDetails,
+      })
+
       throwIf(error)
-
-      const { data, error: fetchError } = await client()
-        .from('calendar_shares')
-        .select('id, calendar_id, subject_type, subject_id, role, hide_details')
-        .eq('calendar_id', input.calendarId)
-        .eq('subject_type', input.subjectType)
-        .eq('subject_id', input.subjectId)
-        .single<{
-          id: string
-          calendar_id: string
-          subject_type: 'user' | 'team' | 'workspace'
-          subject_id: string
-          role: 'viewer' | 'participant' | 'editor'
-          hide_details: boolean
-        }>()
-
-      throwIf(fetchError)
       if (!data) throw new Error('The calendar share could not be saved')
       return {
-        id: data.id,
-        calendarId: data.calendar_id,
-        subjectType: data.subject_type,
-        subjectId: data.subject_id,
-        role: data.role,
-        hideDetails: data.hide_details,
+        id: data as string,
+        calendarId: input.calendarId,
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        role: input.role,
+        hideDetails: input.hideDetails,
       }
     },
 
     async deleteCalendarShare(shareId) {
-      const { error } = await client().from('calendar_shares').delete().eq('id', shareId)
+      const { error } = await client().rpc('delete_calendar_share', {
+        p_share_id: shareId,
+      })
       throwIf(error)
     },
 
@@ -910,11 +777,9 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async updateNotificationPreferences(preferences) {
-      const userId = await currentUserId()
-      const { error } = await client()
-        .from('profiles')
-        .update({ notification_preferences: preferences })
-        .eq('id', userId)
+      const { error } = await client().rpc('update_notification_preferences', {
+        p_preferences: preferences,
+      })
       throwIf(error)
     },
 

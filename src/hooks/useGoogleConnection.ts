@@ -118,21 +118,9 @@ export function useGoogleConnection() {
   const setCalendarExport = useMutation({
     mutationFn: async (variables: { calendarId: string; enabled: boolean }) => {
       if (!supabase) throw new Error('Supabase is not configured')
-      if (!variables.enabled) {
-        const { error } = await supabase
-          .from('calendar_export_preferences')
-          .delete()
-          .eq('calendar_id', variables.calendarId)
-        if (error) throw error
-        return
-      }
-
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      if (userError || !userData.user) throw new Error('You need to be signed in')
-      const { error } = await supabase.from('calendar_export_preferences').upsert({
-        user_id: userData.user.id,
-        calendar_id: variables.calendarId,
-        enabled: true,
+      const { error } = await supabase.rpc('set_calendar_export', {
+        p_calendar_id: variables.calendarId,
+        p_enabled: variables.enabled,
       })
       if (error) throw error
     },

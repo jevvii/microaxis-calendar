@@ -31,6 +31,9 @@ Every calendar access check also requires live workspace membership and a live w
 
 ## Mutations
 
+User-facing create, update, and delete operations are routed through validated `security definer` RPCs. The RPCs derive the actor from `auth.uid()`, derive workspace ownership from the target row, and repeat the permission checks rather than trusting client payloads. This also keeps writes reliable under the project's PostgREST/RLS behavior.
+
+
 - Event updates require `can_edit_event`: creator, calendar Editor, or calendar Manager. Private events are creator-only.
 - Attendance is a separate `event_participants` row. A user can update their own RSVP; editors can manage participants.
 - Calendar settings, shares, and membership require `can_manage_calendar`.

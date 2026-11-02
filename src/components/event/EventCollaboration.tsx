@@ -59,6 +59,14 @@ export function EventCollaboration({
   const deleteAttachment = useDeleteAttachment(event.id)
   const [preview, setPreview] = useState<{ attachment: EventAttachment; url: string } | null>(null)
 
+  function showError(title: string, reason: unknown) {
+    toast({
+      title,
+      description: reason instanceof Error ? reason.message : 'Try again.',
+      tone: 'error',
+    })
+  }
+
   const comments = commentsQuery.data ?? []
   const attachments = attachmentsQuery.data ?? []
   const activity = activityQuery.data ?? []
@@ -101,9 +109,16 @@ export function EventCollaboration({
               currentUserId={currentUserId}
               canModerate={canModerate}
               onEdit={(commentId, body) =>
-                updateComment.mutate({ commentId, body })
+                updateComment.mutate(
+                  { commentId, body },
+                  { onError: (reason) => showError('Could not update the comment', reason) },
+                )
               }
-              onDelete={(commentId) => deleteComment.mutate(commentId)}
+              onDelete={(commentId) =>
+                deleteComment.mutate(commentId, {
+                  onError: (reason) => showError('Could not delete the comment', reason),
+                })
+              }
             />
           )}
         </div>
@@ -154,7 +169,11 @@ export function EventCollaboration({
             attachments={attachments}
             canManage={canManage && online}
             onOpen={openAttachment}
-            onDelete={(attachmentId) => deleteAttachment.mutate(attachmentId)}
+            onDelete={(attachmentId) =>
+              deleteAttachment.mutate(attachmentId, {
+                onError: (reason) => showError('Could not delete the attachment', reason),
+              })
+            }
           />
         </div>
       </section>
