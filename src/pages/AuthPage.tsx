@@ -85,7 +85,7 @@ export function AuthPage() {
 
           {configurationError ? (
             <div className="mt-5 rounded-control border border-warning/25 bg-warning-wash p-3 text-sm leading-6 text-warning">
-              {configurationError} The demo workspace is still available.
+              {configurationError}
             </div>
           ) : null}
 

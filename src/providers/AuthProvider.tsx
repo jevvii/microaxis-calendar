@@ -25,11 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     env.demoMode ? demoUserProfile() : null,
   )
   const [loading, setLoading] = useState(!env.demoMode)
-  const [configurationError, setConfigurationError] = useState<string | null>(
-    env.demoMode
-      ? null
-      : 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-  )
+  const [configurationError, setConfigurationError] = useState<string | null>(null)
 
   useEffect(() => {
     if (env.demoMode) {
@@ -76,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void hydrate(data.session.user)
         } else {
           setLoading(false)
+          setConfigurationError(null)
         }
       })
       .catch(() => {
