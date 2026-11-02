@@ -9,6 +9,11 @@ import type {
   WorkspaceMembership,
   RsvpStatus,
   NotificationPreferences,
+  WorkspaceAuditEntry,
+  CalendarShare,
+  CalendarRole,
+  ShareSubjectType,
+  WorkspaceRole,
   EventComment,
   EventAttachment,
   EventActivity,
@@ -27,6 +32,31 @@ export type UpdateEventResult =
 export type DeleteEventResult =
   | { ok: true }
   | { ok: false; conflict: true; current: Event | null }
+
+export type TeamAdminInput = {
+  name: string
+  description: string
+  color: string
+  leadIds: string[]
+  memberIds: string[]
+}
+
+export type CalendarAdminInput = {
+  workspaceId: string
+  name: string
+  description: string
+  kind: 'personal' | 'team' | 'workspace' | 'shared'
+  teamId?: string | null
+  color: string
+}
+
+export type CalendarShareInput = {
+  calendarId: string
+  subjectType: ShareSubjectType
+  subjectId: string
+  role: Exclude<CalendarRole, 'manager'>
+  hideDetails: boolean
+}
 
 export type DataProvider = {
   mode: 'demo' | 'supabase'
@@ -62,4 +92,22 @@ export type DataProvider = {
   listActivity: (eventId: string) => Promise<EventActivity[]>
   getNotificationPreferences: () => Promise<NotificationPreferences>
   updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>
+  updateWorkspaceMember: (
+    workspaceId: string,
+    userId: string,
+    role: WorkspaceRole,
+  ) => Promise<void>
+  removeWorkspaceMember: (workspaceId: string, userId: string) => Promise<void>
+  createTeam: (workspaceId: string, input: TeamAdminInput) => Promise<Team>
+  updateTeam: (teamId: string, input: TeamAdminInput) => Promise<Team>
+  deleteTeam: (teamId: string) => Promise<void>
+  createCalendar: (input: CalendarAdminInput) => Promise<Calendar>
+  updateCalendar: (
+    calendarId: string,
+    input: { name: string; description: string; color: string },
+  ) => Promise<Calendar>
+  deleteCalendar: (calendarId: string) => Promise<void>
+  upsertCalendarShare: (input: CalendarShareInput) => Promise<CalendarShare>
+  deleteCalendarShare: (shareId: string) => Promise<void>
+  listAuditLog: (workspaceId: string) => Promise<WorkspaceAuditEntry[]>
 }

@@ -39,6 +39,17 @@ function createUnconfiguredProvider(): DataProvider {
     listActivity: notConfigured,
     getNotificationPreferences: notConfigured,
     updateNotificationPreferences: notConfigured,
+    updateWorkspaceMember: notConfigured,
+    removeWorkspaceMember: notConfigured,
+    createTeam: notConfigured,
+    updateTeam: notConfigured,
+    deleteTeam: notConfigured,
+    createCalendar: notConfigured,
+    updateCalendar: notConfigured,
+    deleteCalendar: notConfigured,
+    upsertCalendarShare: notConfigured,
+    deleteCalendarShare: notConfigured,
+    listAuditLog: notConfigured,
   }
 }
 

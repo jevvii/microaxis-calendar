@@ -13,6 +13,7 @@ import type {
   Team,
   Workspace,
   WorkspaceMembership,
+  WorkspaceAuditEntry,
 } from '../../types/domain'
 
 export type ProfileRow = {
@@ -159,6 +160,18 @@ export type EventActivityRow = {
   actor?: ProfileRow | ProfileRow[] | null
 }
 
+export type WorkspaceAuditEntryRow = {
+  id: string
+  workspace_id: string
+  actor_id: string | null
+  action: string
+  target_type: string
+  target_id: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+  actor?: ProfileRow | ProfileRow[] | null
+}
+
 export type NotificationRow = {
   id: string
   workspace_id: string
@@ -236,6 +249,7 @@ export function mapTeamRow(row: TeamRow): Team {
     createdAt: row.created_at,
     deletedAt: row.deleted_at,
     leadIds: members.filter((member) => member.role === 'lead').map((member) => member.user_id),
+    memberIds: members.map((member) => member.user_id),
     memberCount: members.length,
   }
 }
@@ -357,6 +371,21 @@ export function mapEventActivityRow(row: EventActivityRow): EventActivity {
     eventId: row.event_id,
     actorId: row.actor_id,
     action: row.action,
+    metadata: row.metadata ?? {},
+    createdAt: row.created_at,
+    actor: actor ? mapProfileRow(actor) : undefined,
+  }
+}
+
+export function mapWorkspaceAuditEntryRow(row: WorkspaceAuditEntryRow): WorkspaceAuditEntry {
+  const actor = Array.isArray(row.actor) ? row.actor[0] : row.actor
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    actorId: row.actor_id,
+    action: row.action,
+    targetType: row.target_type,
+    targetId: row.target_id,
     metadata: row.metadata ?? {},
     createdAt: row.created_at,
     actor: actor ? mapProfileRow(actor) : undefined,

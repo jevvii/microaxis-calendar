@@ -12,6 +12,7 @@ import type {
   Team,
   TeamMembership,
   Workspace,
+  WorkspaceAuditEntry,
   WorkspaceMembership,
 } from '../../types/domain'
 
@@ -660,6 +661,39 @@ export const defaultNotificationPreferences: NotificationPreferences = {
   quietHoursEnd: '08:00',
 }
 
+export const demoAuditLog: WorkspaceAuditEntry[] = [
+  {
+    id: 'b1000000-0000-4000-8000-000000000001',
+    workspaceId: DEMO_WORKSPACE_ID,
+    actorId: 'a0000000-0000-4000-8000-000000000001',
+    action: 'insert',
+    targetType: 'workspace_members',
+    targetId: 'a0000000-0000-4000-8000-000000000002',
+    metadata: { role: 'admin' },
+    createdAt: '2026-09-02T00:00:00.000Z',
+  },
+  {
+    id: 'b1000000-0000-4000-8000-000000000002',
+    workspaceId: DEMO_WORKSPACE_ID,
+    actorId: 'a0000000-0000-4000-8000-000000000002',
+    action: 'insert',
+    targetType: 'calendars',
+    targetId: '30000000-0000-4000-8000-000000000005',
+    metadata: { name: 'Launch room' },
+    createdAt: '2026-09-15T00:00:00.000Z',
+  },
+  {
+    id: 'b1000000-0000-4000-8000-000000000003',
+    workspaceId: DEMO_WORKSPACE_ID,
+    actorId: 'a0000000-0000-4000-8000-000000000001',
+    action: 'update',
+    targetType: 'teams',
+    targetId: '20000000-0000-4000-8000-000000000001',
+    metadata: { name: 'Product' },
+    createdAt: '2026-10-21T00:00:00.000Z',
+  },
+]
+
 export type DemoState = {
   currentUserId: string
   profiles: Profile[]
@@ -675,6 +709,7 @@ export type DemoState = {
   attachments: EventAttachment[]
   activity: EventActivity[]
   notificationPreferences: Record<string, NotificationPreferences>
+  auditLog: WorkspaceAuditEntry[]
 }
 
 export function createDemoSeed(): DemoState {
@@ -698,6 +733,7 @@ export function createDemoSeed(): DemoState {
       'a0000000-0000-4000-8000-000000000003': structuredClone(defaultNotificationPreferences),
       'a0000000-0000-4000-8000-000000000004': structuredClone(defaultNotificationPreferences),
     },
+    auditLog: structuredClone(demoAuditLog),
   }
 }
 

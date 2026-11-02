@@ -10,6 +10,9 @@ import type {
   NotificationPreferences,
   RsvpStatus,
   Team,
+  CalendarShare,
+  WorkspaceAuditEntry,
+  WorkspaceRole,
   Workspace,
   WorkspaceMembership,
 } from '../../types/domain'
@@ -20,6 +23,9 @@ import type {
   DeleteEventResult,
   EventRange,
   UpdateEventResult,
+  TeamAdminInput,
+  CalendarAdminInput,
+  CalendarShareInput,
 } from '../types'
 import {
   createDemoSeed,
@@ -47,6 +53,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           attachments: parsed.attachments ?? [],
           activity: parsed.activity ?? [],
           notificationPreferences: parsed.notificationPreferences ?? {},
+          auditLog: parsed.auditLog ?? [],
         }
       }
     } catch {
@@ -80,6 +87,12 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         (membership) =>
           membership.workspaceId === workspaceId && membership.userId === state.currentUserId,
       )?.role ?? null
+    )
+  }
+
+  function isWorkspaceMember(workspaceId: string, userId: string) {
+    return state.workspaceMemberships.some(
+      (membership) => membership.workspaceId === workspaceId && membership.userId === userId,
     )
   }
 
@@ -155,6 +168,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
       leadIds: memberships
         .filter((membership) => membership.role === 'lead')
         .map((membership) => membership.userId),
+      memberIds: memberships.map((membership) => membership.userId),
       memberCount: memberships.length,
     }
   }
@@ -518,6 +532,326 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         .map((activity) => ({
           ...clone(activity),
           actor: state.profiles.find((profile) => profile.id === activity.actorId),
+        }))
+    },
+
+    async updateWorkspaceMember(
+      workspaceId: string,
+      userId: string,
+      role: WorkspaceRole,
+    ) {
+      const actorRole = workspaceRole(workspaceId)
+      if (actorRole !== 'owner' && actorRole !== 'admin') {
+        throw new Error('Only workspace owners and admins can change roles')
+      }
+      const membership = state.workspaceMemberships.find(
+        (item) => item.workspaceId === workspaceId && item.userId === userId,
+      )
+      if (!membership) throw new Error('Workspace member not found')
+
+      if (membership.role === 'owner' && role !== 'owner') {
+        const otherOwners = state.workspaceMemberships.filter(
+          (item) =>
+            item.workspaceId === workspaceId &&
+            item.role === 'owner' &&
+            item.userId !== userId,
+        )
+        if (otherOwners.length === 0) throw new Error('A workspace must keep at least one owner')
+      }
+
+      saveState({
+        ...state,
+        workspaceMemberships: state.workspaceMemberships.map((item) =>
+          item.id === membership.id ? { ...item, role } : item,
+        ),
+      })
+    },
+
+    async removeWorkspaceMember(workspaceId: string, userId: string) {
+      const actorRole = workspaceRole(workspaceId)
+      if (actorRole !== 'owner' && actorRole !== 'admin') {
+        throw new Error('Only workspace owners and admins can remove members')
+      }
+      const membership = state.workspaceMemberships.find(
+        (item) => item.workspaceId === workspaceId && item.userId === userId,
+      )
+      if (!membership) return
+      if (membership.role === 'owner') {
+        const otherOwners = state.workspaceMemberships.filter(
+          (item) =>
+            item.workspaceId === workspaceId &&
+            item.role === 'owner' &&
+            item.userId !== userId,
+        )
+        if (otherOwners.length === 0) throw new Error('A workspace must keep at least one owner')
+      }
+
+      const workspaceTeamIds = new Set(
+        state.teams
+          .filter((team) => team.workspaceId === workspaceId)
+          .map((team) => team.id),
+      )
+
+      saveState({
+        ...state,
+        workspaceMemberships: state.workspaceMemberships.filter(
+          (item) => item.id !== membership.id,
+        ),
+        teamMemberships: state.teamMemberships.filter(
+          (item) => !(item.userId === userId && workspaceTeamIds.has(item.teamId)),
+        ),
+      })
+    },
+
+    async createTeam(workspaceId: string, input: TeamAdminInput) {
+      const actorRole = workspaceRole(workspaceId)
+      if (actorRole !== 'owner' && actorRole !== 'admin') {
+        throw new Error('Only workspace owners and admins can create teams')
+      }
+      const now = new Date().toISOString()
+      const team: Team = {
+        id: crypto.randomUUID(),
+        workspaceId,
+        name: input.name,
+        description: input.description || null,
+        color: input.color,
+        createdBy: state.currentUserId,
+        createdAt: now,
+        deletedAt: null,
+      }
+      const leadIds = [...new Set(input.leadIds)]
+      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
+      const memberships = [
+        ...leadIds.map((userId) => ({
+          id: crypto.randomUUID(),
+          teamId: team.id,
+          userId,
+          role: 'lead' as const,
+          joinedAt: now,
+        })),
+        ...memberIds.map((userId) => ({
+          id: crypto.randomUUID(),
+          teamId: team.id,
+          userId,
+          role: 'member' as const,
+          joinedAt: now,
+        })),
+      ]
+
+      saveState({
+        ...state,
+        teams: [...state.teams, team],
+        teamMemberships: [...state.teamMemberships, ...memberships],
+      })
+      return attachTeam(team)
+    },
+
+    async updateTeam(teamId: string, input: TeamAdminInput) {
+      const team = state.teams.find((item) => item.id === teamId)
+      if (!team) throw new Error('Team not found')
+      const actorRole = workspaceRole(team.workspaceId)
+      const actorTeamRole = teamRole(teamId)
+      if (
+        actorRole !== 'owner' &&
+        actorRole !== 'admin' &&
+        actorTeamRole !== 'lead'
+      ) {
+        throw new Error('Only team leads or workspace admins can edit a team')
+      }
+
+      const updated = {
+        ...team,
+        name: input.name,
+        description: input.description || null,
+        color: input.color,
+      }
+      const leadIds = [...new Set(input.leadIds)]
+      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
+      const now = new Date().toISOString()
+      const otherTeams = state.teamMemberships.filter((item) => item.teamId !== teamId)
+      const nextMemberships = [
+        ...leadIds.map((userId) => ({
+          id: crypto.randomUUID(),
+          teamId,
+          userId,
+          role: 'lead' as const,
+          joinedAt: now,
+        })),
+        ...memberIds.map((userId) => ({
+          id: crypto.randomUUID(),
+          teamId,
+          userId,
+          role: 'member' as const,
+          joinedAt: now,
+        })),
+      ]
+
+      saveState({
+        ...state,
+        teams: state.teams.map((item) => (item.id === teamId ? updated : item)),
+        teamMemberships: [...otherTeams, ...nextMemberships],
+      })
+      return attachTeam(updated)
+    },
+
+    async deleteTeam(teamId: string) {
+      const team = state.teams.find((item) => item.id === teamId)
+      if (!team) return
+      const actorRole = workspaceRole(team.workspaceId)
+      if (actorRole !== 'owner' && actorRole !== 'admin') {
+        throw new Error('Only workspace owners and admins can delete teams')
+      }
+      saveState({
+        ...state,
+        teams: state.teams.map((item) =>
+          item.id === teamId ? { ...item, deletedAt: new Date().toISOString() } : item,
+        ),
+      })
+    },
+
+    async createCalendar(input: CalendarAdminInput) {
+      if (!isWorkspaceMember(input.workspaceId, state.currentUserId)) {
+        throw new Error('You are not a member of this workspace')
+      }
+      const now = new Date().toISOString()
+      const calendar: Calendar = {
+        id: crypto.randomUUID(),
+        workspaceId: input.workspaceId,
+        ownerId: input.kind === 'personal' ? state.currentUserId : null,
+        teamId: input.kind === 'team' ? input.teamId ?? null : null,
+        name: input.name,
+        description: input.description || null,
+        kind: input.kind,
+        color: input.color,
+        visibility:
+          input.kind === 'personal'
+            ? 'private'
+            : input.kind === 'team'
+              ? 'team'
+              : 'workspace',
+        createdBy: state.currentUserId,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        shares: [],
+      }
+      saveState({ ...state, calendars: [...state.calendars, calendar] })
+      return clone(calendar)
+    },
+
+    async updateCalendar(
+      calendarId: string,
+      input: { name: string; description: string; color: string },
+    ) {
+      const calendar = state.calendars.find((item) => item.id === calendarId)
+      if (!calendar) throw new Error('Calendar not found')
+      const role = calendarRole(calendar, state.currentUserId, {
+        workspaceRole: workspaceRole(calendar.workspaceId),
+        teamIds: teamIds(calendar.workspaceId),
+        teamRole: teamRole(calendar.teamId),
+      })
+      if (role !== 'manager') throw new Error('Only calendar managers can edit this calendar')
+
+      const updated = {
+        ...calendar,
+        name: input.name,
+        description: input.description || null,
+        color: input.color,
+        updatedAt: new Date().toISOString(),
+      }
+      saveState({
+        ...state,
+        calendars: state.calendars.map((item) => (item.id === calendarId ? updated : item)),
+      })
+      return clone(updated)
+    },
+
+    async deleteCalendar(calendarId: string) {
+      const calendar = state.calendars.find((item) => item.id === calendarId)
+      if (!calendar) return
+      const role = calendarRole(calendar, state.currentUserId, {
+        workspaceRole: workspaceRole(calendar.workspaceId),
+        teamIds: teamIds(calendar.workspaceId),
+        teamRole: teamRole(calendar.teamId),
+      })
+      if (role !== 'manager') throw new Error('Only calendar managers can delete this calendar')
+      saveState({
+        ...state,
+        calendars: state.calendars.map((item) =>
+          item.id === calendarId ? { ...item, deletedAt: new Date().toISOString() } : item,
+        ),
+      })
+    },
+
+    async upsertCalendarShare(input: CalendarShareInput) {
+      const calendar = state.calendars.find((item) => item.id === input.calendarId)
+      if (!calendar) throw new Error('Calendar not found')
+      const role = calendarRole(calendar, state.currentUserId, {
+        workspaceRole: workspaceRole(calendar.workspaceId),
+        teamIds: teamIds(calendar.workspaceId),
+        teamRole: teamRole(calendar.teamId),
+      })
+      if (role !== 'manager') throw new Error('Only calendar managers can share this calendar')
+
+      const existing = (calendar.shares ?? []).find(
+        (share) =>
+          share.subjectType === input.subjectType && share.subjectId === input.subjectId,
+      )
+      const share: CalendarShare = existing
+        ? { ...existing, role: input.role, hideDetails: input.hideDetails }
+        : {
+            id: crypto.randomUUID(),
+            calendarId: input.calendarId,
+            subjectType: input.subjectType,
+            subjectId: input.subjectId,
+            role: input.role,
+            hideDetails: input.hideDetails,
+          }
+
+      saveState({
+        ...state,
+        calendars: state.calendars.map((item) =>
+          item.id === input.calendarId
+            ? {
+                ...item,
+                shares: existing
+                  ? (item.shares ?? []).map((entry) => (entry.id === existing.id ? share : entry))
+                  : [...(item.shares ?? []), share],
+              }
+            : item,
+        ),
+      })
+      return clone(share)
+    },
+
+    async deleteCalendarShare(shareId: string) {
+      const calendar = state.calendars.find((item) =>
+        (item.shares ?? []).some((share) => share.id === shareId),
+      )
+      if (!calendar) return
+      const role = calendarRole(calendar, state.currentUserId, {
+        workspaceRole: workspaceRole(calendar.workspaceId),
+        teamIds: teamIds(calendar.workspaceId),
+        teamRole: teamRole(calendar.teamId),
+      })
+      if (role !== 'manager') throw new Error('Only calendar managers can revoke a share')
+      saveState({
+        ...state,
+        calendars: state.calendars.map((item) =>
+          item.id === calendar.id
+            ? { ...item, shares: (item.shares ?? []).filter((share) => share.id !== shareId) }
+            : item,
+        ),
+      })
+    },
+
+    async listAuditLog(workspaceId: string): Promise<WorkspaceAuditEntry[]> {
+      return state.auditLog
+        .filter((entry) => entry.workspaceId === workspaceId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map((entry) => ({
+          ...clone(entry),
+          actor: state.profiles.find((profile) => profile.id === entry.actorId),
         }))
     },
 

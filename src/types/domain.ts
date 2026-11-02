@@ -57,6 +57,7 @@ export type Team = {
   createdAt: ISODateString
   deletedAt: ISODateString | null
   leadIds?: string[]
+  memberIds?: string[]
   memberCount?: number
 }
 
@@ -189,6 +190,18 @@ export type EventActivity = {
   eventId: string
   actorId: string | null
   action: string
+  metadata: Record<string, unknown>
+  createdAt: ISODateString
+  actor?: Profile
+}
+
+export type WorkspaceAuditEntry = {
+  id: string
+  workspaceId: string
+  actorId: string | null
+  action: string
+  targetType: string
+  targetId: string | null
   metadata: Record<string, unknown>
   createdAt: ISODateString
   actor?: Profile

@@ -17,7 +17,15 @@ import type {
   Workspace,
   WorkspaceMembership,
 } from '../../types/domain'
-import type { DataProvider, DeleteEventResult, EventRange, UpdateEventResult } from '../types'
+import type {
+  DataProvider,
+  DeleteEventResult,
+  EventRange,
+  UpdateEventResult,
+  TeamAdminInput,
+  CalendarAdminInput,
+  CalendarShareInput,
+} from '../types'
 import {
   mapCalendarRow,
   mapEventActivityRow,
@@ -29,6 +37,7 @@ import {
   mapNotificationRow,
   mapProfileRow,
   mapTeamRow,
+  mapWorkspaceAuditEntryRow,
   mapWorkspaceMemberRow,
   mapWorkspaceRow,
   type CalendarRow,
@@ -41,6 +50,7 @@ import {
   type NotificationRow,
   type ProfileRow,
   type TeamRow,
+  type WorkspaceAuditEntryRow,
   type WorkspaceMemberRow,
   type WorkspaceRow,
 } from './mappers'
@@ -142,6 +152,32 @@ async function calendarsById(workspaceId: string) {
       calendar.kind,
     ]),
   )
+}
+
+async function getTeamById(teamId: string): Promise<Team> {
+  const { data, error } = await client()
+    .from('teams')
+    .select(
+      'id, workspace_id, name, description, color, created_by, created_at, deleted_at, team_members(user_id, role)',
+    )
+    .eq('id', teamId)
+    .single<TeamRow>()
+
+  throwIf(error)
+  if (!data) throw new Error('Team not found')
+  return mapTeamRow(data)
+}
+
+async function getCalendarById(calendarId: string): Promise<Calendar> {
+  const { data, error } = await client()
+    .from('calendars')
+    .select('*, calendar_shares(*)')
+    .eq('id', calendarId)
+    .single<CalendarRow>()
+
+  throwIf(error)
+  if (!data) throw new Error('Calendar not found')
+  return mapCalendarRow(data)
 }
 
 export function createSupabaseProvider(): DataProvider {
@@ -647,6 +683,219 @@ export function createSupabaseProvider(): DataProvider {
 
       throwIf(error)
       return ((data ?? []) as unknown as EventActivityRow[]).map(mapEventActivityRow)
+    },
+
+    async updateWorkspaceMember(workspaceId, userId, role) {
+      const { error } = await client()
+        .from('workspace_members')
+        .update({ role })
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId)
+      throwIf(error)
+    },
+
+    async removeWorkspaceMember(workspaceId, userId) {
+      const { error } = await client()
+        .from('workspace_members')
+        .delete()
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', userId)
+      throwIf(error)
+    },
+
+    async createTeam(workspaceId: string, input: TeamAdminInput) {
+      const userId = await currentUserId()
+      const { data, error } = await client()
+        .from('teams')
+        .insert({
+          workspace_id: workspaceId,
+          name: input.name,
+          description: input.description || null,
+          color: input.color,
+          created_by: userId,
+        })
+        .select('id')
+        .single<{ id: string }>()
+
+      throwIf(error)
+      if (!data) throw new Error('The team could not be created')
+
+      const leadIds = [...new Set(input.leadIds)]
+      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
+      if (leadIds.length + memberIds.length > 0) {
+        const { error: memberError } = await client().from('team_members').insert([
+          ...leadIds.map((memberId) => ({
+            team_id: data.id,
+            user_id: memberId,
+            role: 'lead',
+          })),
+          ...memberIds.map((memberId) => ({
+            team_id: data.id,
+            user_id: memberId,
+            role: 'member',
+          })),
+        ])
+        throwIf(memberError)
+      }
+      return getTeamById(data.id)
+    },
+
+    async updateTeam(teamId: string, input: TeamAdminInput) {
+      const { error } = await client()
+        .from('teams')
+        .update({
+          name: input.name,
+          description: input.description || null,
+          color: input.color,
+        })
+        .eq('id', teamId)
+      throwIf(error)
+
+      const { error: deleteError } = await client()
+        .from('team_members')
+        .delete()
+        .eq('team_id', teamId)
+      throwIf(deleteError)
+
+      const leadIds = [...new Set(input.leadIds)]
+      const memberIds = [...new Set(input.memberIds)].filter((id) => !leadIds.includes(id))
+      if (leadIds.length + memberIds.length > 0) {
+        const { error: memberError } = await client().from('team_members').insert([
+          ...leadIds.map((memberId) => ({
+            team_id: teamId,
+            user_id: memberId,
+            role: 'lead',
+          })),
+          ...memberIds.map((memberId) => ({
+            team_id: teamId,
+            user_id: memberId,
+            role: 'member',
+          })),
+        ])
+        throwIf(memberError)
+      }
+
+      return getTeamById(teamId)
+    },
+
+    async deleteTeam(teamId: string) {
+      const { error } = await client()
+        .from('teams')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', teamId)
+      throwIf(error)
+    },
+
+    async createCalendar(input: CalendarAdminInput) {
+      const userId = await currentUserId()
+      const { data, error } = await client()
+        .from('calendars')
+        .insert({
+          workspace_id: input.workspaceId,
+          owner_id: input.kind === 'personal' ? userId : null,
+          team_id: input.kind === 'team' ? input.teamId ?? null : null,
+          name: input.name,
+          description: input.description || null,
+          kind: input.kind,
+          color: input.color,
+          visibility:
+            input.kind === 'personal'
+              ? 'private'
+              : input.kind === 'team'
+                ? 'team'
+                : 'workspace',
+          created_by: userId,
+        })
+        .select('id')
+        .single<{ id: string }>()
+
+      throwIf(error)
+      if (!data) throw new Error('The calendar could not be created')
+      return getCalendarById(data.id)
+    },
+
+    async updateCalendar(calendarId, input) {
+      const { error } = await client()
+        .from('calendars')
+        .update({
+          name: input.name,
+          description: input.description || null,
+          color: input.color,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', calendarId)
+      throwIf(error)
+      return getCalendarById(calendarId)
+    },
+
+    async deleteCalendar(calendarId) {
+      const { error } = await client()
+        .from('calendars')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', calendarId)
+      throwIf(error)
+    },
+
+    async upsertCalendarShare(input: CalendarShareInput) {
+      const { error } = await client()
+        .from('calendar_shares')
+        .upsert(
+          {
+            calendar_id: input.calendarId,
+            subject_type: input.subjectType,
+            subject_id: input.subjectId,
+            role: input.role,
+            hide_details: input.hideDetails,
+            created_by: (await currentUserId()),
+          },
+          { onConflict: 'calendar_id,subject_type,subject_id' },
+        )
+      throwIf(error)
+
+      const { data, error: fetchError } = await client()
+        .from('calendar_shares')
+        .select('id, calendar_id, subject_type, subject_id, role, hide_details')
+        .eq('calendar_id', input.calendarId)
+        .eq('subject_type', input.subjectType)
+        .eq('subject_id', input.subjectId)
+        .single<{
+          id: string
+          calendar_id: string
+          subject_type: 'user' | 'team' | 'workspace'
+          subject_id: string
+          role: 'viewer' | 'participant' | 'editor'
+          hide_details: boolean
+        }>()
+
+      throwIf(fetchError)
+      if (!data) throw new Error('The calendar share could not be saved')
+      return {
+        id: data.id,
+        calendarId: data.calendar_id,
+        subjectType: data.subject_type,
+        subjectId: data.subject_id,
+        role: data.role,
+        hideDetails: data.hide_details,
+      }
+    },
+
+    async deleteCalendarShare(shareId) {
+      const { error } = await client().from('calendar_shares').delete().eq('id', shareId)
+      throwIf(error)
+    },
+
+    async listAuditLog(workspaceId) {
+      const { data, error } = await client()
+        .from('workspace_audit_log')
+        .select(
+          'id, workspace_id, actor_id, action, target_type, target_id, metadata, created_at, actor:profiles(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      throwIf(error)
+      return ((data ?? []) as unknown as WorkspaceAuditEntryRow[]).map(mapWorkspaceAuditEntryRow)
     },
 
     async getNotificationPreferences() {
