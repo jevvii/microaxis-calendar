@@ -1,5 +1,7 @@
-create extension if not exists pgcrypto;
-create extension if not exists pg_trgm;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
+set search_path = public, extensions;
 
 create type public.workspace_role as enum ('owner', 'admin', 'member');
 create type public.team_role as enum ('lead', 'member');

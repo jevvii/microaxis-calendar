@@ -1,5 +1,5 @@
 import { ArrowRight } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDataProvider } from '../data/provider'
 import { useAuth } from '../providers/AuthProvider'
@@ -22,7 +22,7 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function createWorkspace(event: React.FormEvent<HTMLFormElement>) {
+  async function createWorkspace(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     if (name.trim().length < 2) {

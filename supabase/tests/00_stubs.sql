@@ -9,6 +9,8 @@ begin
 end;
 $$;
 
+create schema if not exists extensions;
+
 create schema if not exists auth;
 
 create table if not exists auth.users (

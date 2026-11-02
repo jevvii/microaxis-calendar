@@ -1,6 +1,7 @@
 import { GoogleLogo, EnvelopeSimple, ArrowRight } from '@phosphor-icons/react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { signInWithGoogle, signInWithMagicLink } from '../lib/auth'
 import { useAuth } from '../providers/AuthProvider'
 import { useToast } from '../providers/ToastProvider'
 import { Button } from '../components/ui/Button'
@@ -13,6 +14,41 @@ export function AuthPage() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [emailSent, setEmailSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleGoogle() {
+    if (isDemo) {
+      navigate('/app/calendar')
+      return
+    }
+    setSubmitting(true)
+    const result = await signInWithGoogle()
+    setSubmitting(false)
+    if (result.error) {
+      toast({ title: 'Could not start Google sign-in', description: result.error, tone: 'error' })
+    }
+  }
+
+  async function handleMagicLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setEmailError(null)
+    setEmailSent(false)
+    if (isDemo) {
+      toast({ title: 'Demo mode is active', description: 'Open the demo workspace below.', tone: 'info' })
+      return
+    }
+
+    setSubmitting(true)
+    const result = await signInWithMagicLink(email)
+    setSubmitting(false)
+    if (result.error) {
+      setEmailError(result.error)
+      return
+    }
+    setEmailSent(true)
+  }
 
   return (
     <main className="grid min-h-[100dvh] bg-canvas lg:grid-cols-[1.05fr_0.95fr]">
@@ -56,16 +92,9 @@ export function AuthPage() {
           <div className="mt-6 grid gap-2.5">
             <Button
               variant="primary"
+              loading={submitting}
               leadingIcon={<GoogleLogo size={16} weight="bold" aria-hidden />}
-              onClick={() =>
-                toast({
-                  title: isDemo ? 'Demo mode is active' : 'Google sign-in is next',
-                  description: isDemo
-                    ? 'The demo workspace is already signed in.'
-                    : 'Supabase OAuth is wired in the next task.',
-                  tone: 'info',
-                })
-              }
+              onClick={handleGoogle}
             >
               Continue with Google
             </Button>
@@ -76,31 +105,32 @@ export function AuthPage() {
               <span className="h-px flex-1 bg-line" />
             </div>
 
-            <Field label="Work email" htmlFor="auth-email">
-              <Input
-                id="auth-email"
-                type="email"
-                placeholder="you@studio.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-              />
-            </Field>
-            <Button
-              variant="secondary"
-              leadingIcon={<EnvelopeSimple size={16} aria-hidden />}
-              onClick={() =>
-                toast({
-                  title: isDemo ? 'Demo mode is active' : 'Magic links are next',
-                  description: isDemo
-                    ? 'Open the demo workspace below.'
-                    : 'Supabase email auth is wired in the next task.',
-                  tone: 'info',
-                })
-              }
-            >
-              Email me a sign-in link
-            </Button>
+            <form className="grid gap-2.5" onSubmit={handleMagicLink}>
+              <Field
+                label="Work email"
+                htmlFor="auth-email"
+                error={emailError ?? undefined}
+                hint={emailSent ? 'Check your inbox for the sign-in link.' : undefined}
+              >
+                <Input
+                  id="auth-email"
+                  type="email"
+                  placeholder="you@studio.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  autoComplete="email"
+                  aria-describedby={emailError ? 'auth-email-error' : undefined}
+                />
+              </Field>
+              <Button
+                type="submit"
+                variant="secondary"
+                loading={submitting}
+                leadingIcon={<EnvelopeSimple size={16} aria-hidden />}
+              >
+                Email me a sign-in link
+              </Button>
+            </form>
           </div>
 
           {user ? (

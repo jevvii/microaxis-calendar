@@ -1,5 +1,8 @@
+import type { User } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { loadProfile, signOut as signOutWithSupabase } from '../lib/auth'
 import { env } from '../lib/env'
+import { supabase } from '../lib/supabase'
 import type { Profile } from '../types/domain'
 import { demoUserProfile } from '../data/demo/demoData'
 
@@ -18,24 +21,82 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     env.demoMode ? demoUserProfile() : null,
   )
   const [loading, setLoading] = useState(!env.demoMode)
-  const [configurationError, setConfigurationError] = useState<string | null>(null)
+  const [configurationError, setConfigurationError] = useState<string | null>(
+    env.demoMode
+      ? null
+      : 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+  )
 
   useEffect(() => {
     if (env.demoMode) {
       setUser(demoUserProfile())
       setLoading(false)
+      setConfigurationError(null)
       return
     }
 
-    // Supabase session hydration is wired in Task 7. Until then, never
-    // pretend a user is signed in when credentials are absent.
-    setUser(null)
-    setLoading(false)
-    setConfigurationError(
-      env.supabaseUrl
-        ? null
-        : 'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
-    )
+    if (!supabase) {
+      setUser(null)
+      setLoading(false)
+      setConfigurationError(
+        'Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.',
+      )
+      return
+    }
+
+    let active = true
+
+    async function hydrate(nextUser: User) {
+      try {
+        const profile = await loadProfile(nextUser)
+        if (active) {
+          setUser(profile)
+          setConfigurationError(null)
+        }
+      } catch (reason) {
+        if (active) {
+          setConfigurationError(
+            reason instanceof Error ? reason.message : 'Could not load your profile.',
+          )
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return
+        if (data.session?.user) {
+          void hydrate(data.session.user)
+        } else {
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!active) return
+        setLoading(false)
+        setConfigurationError('Could not reach Supabase. Check the project URL and anon key.')
+      })
+
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return
+      if (session?.user) {
+        setLoading(true)
+        window.setTimeout(() => {
+          if (active && session.user) void hydrate(session.user)
+        }, 0)
+      } else {
+        setUser(null)
+        setLoading(false)
+      }
+    })
+
+    return () => {
+      active = false
+      data.subscription.unsubscribe()
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(
@@ -45,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isDemo: env.demoMode,
       configurationError,
       signOut: async () => {
+        await signOutWithSupabase()
         setUser(null)
       },
     }),
