@@ -88,6 +88,7 @@ set public = false,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists event_attachments_objects_read on storage.objects;
 create policy event_attachments_objects_read on storage.objects
   for select to authenticated
   using (
@@ -95,6 +96,7 @@ create policy event_attachments_objects_read on storage.objects
     and public.can_view_event((storage.foldername(name))[2]::uuid, auth.uid())
   );
 
+drop policy if exists event_attachments_objects_insert on storage.objects;
 create policy event_attachments_objects_insert on storage.objects
   for insert to authenticated
   with check (
@@ -107,17 +109,18 @@ create policy event_attachments_objects_insert on storage.objects
     )
   );
 
+drop policy if exists event_attachments_objects_delete on storage.objects;
 create policy event_attachments_objects_delete on storage.objects
   for delete to authenticated
   using (
     bucket_id = 'event-attachments'
     and (
-      owner_id = auth.uid()
+      owner_id::text = auth.uid()::text
       or exists (
         select 1
         from public.event_attachments ea
         join public.events e on e.id = ea.event_id
-        where ea.storage_path = name
+        where ea.storage_path = storage.objects.name
           and public.can_manage_calendar(e.calendar_id, auth.uid())
       )
     )
@@ -135,6 +138,7 @@ begin
 end;
 $$;
 
+drop policy if exists workspace_broadcast_read on realtime.messages;
 create policy workspace_broadcast_read on realtime.messages
   for select to authenticated
   using (
@@ -146,6 +150,7 @@ create policy workspace_broadcast_read on realtime.messages
     )
   );
 
+drop policy if exists workspace_broadcast_write on realtime.messages;
 create policy workspace_broadcast_write on realtime.messages
   for insert to authenticated
   with check (
