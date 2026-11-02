@@ -330,25 +330,21 @@ export function createSupabaseProvider(): DataProvider {
     },
 
     async createEvent(input: EventInput): Promise<Event> {
-      const userId = await currentUserId()
       const { data: calendar, error: calendarError } = await client()
         .from('calendars')
-        .select('id, workspace_id, kind')
+        .select('id, kind')
         .eq('id', input.calendarId)
-        .single<{ id: string; workspace_id: string; kind: CalendarKind }>()
+        .single<{ id: string; kind: CalendarKind }>()
 
       throwIf(calendarError)
       if (!calendar) throw new Error('Calendar not found')
 
-      const { data, error } = await client()
-        .from('events')
-        .insert({
-          workspace_id: calendar.workspace_id,
-          calendar_id: calendar.id,
-          created_by: userId,
+      const { data, error } = await client().rpc('create_event', {
+        p_calendar_id: input.calendarId,
+        p_payload: {
           title: input.title,
-          description: input.description || null,
-          location: input.location || null,
+          description: input.description ?? '',
+          location: input.location ?? '',
           starts_at: input.startsAt,
           ends_at: input.endsAt,
           all_day: input.allDay,
@@ -357,33 +353,18 @@ export function createSupabaseProvider(): DataProvider {
           priority: input.priority,
           status: input.status ?? 'scheduled',
           visibility: input.visibility,
-          export_to_google: input.exportToGoogle ?? true,
           recurrence_rule: input.recurrenceRule ?? null,
           recurrence_until: input.recurrenceUntil ?? null,
-          recurrence_exceptions: [],
-        })
-        .select('*')
-        .single<EventRow>()
+          participant_ids: input.participantIds ?? [],
+          export_to_google: input.exportToGoogle ?? true,
+        },
+      })
 
       throwIf(error)
-      if (!data) throw new Error('The event could not be created')
+      const result = data as { event?: EventRow; calendar_kind?: CalendarKind } | null
+      if (!result?.event) throw new Error('The event could not be created')
 
-      const participantIds = [...new Set(input.participantIds ?? [])]
-      if (participantIds.length > 0) {
-        const { error: participantError } = await client()
-          .from('event_participants')
-          .upsert(
-            participantIds.map((participantId) => ({
-              event_id: data.id,
-              user_id: participantId,
-              status: 'no_response',
-            })),
-            { onConflict: 'event_id,user_id', ignoreDuplicates: true },
-          )
-        throwIf(participantError)
-      }
-
-      return hydrateEvent(data, calendar.kind)
+      return hydrateEvent(result.event, result.calendar_kind ?? calendar.kind)
     },
 
     async updateEvent(

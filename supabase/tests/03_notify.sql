@@ -187,3 +187,35 @@ begin
   end if;
 end;
 $$;
+
+set role authenticated;
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', false);
+select set_config('request.jwt.claims', '{"sub":"a0000000-0000-4000-8000-000000000001","role":"authenticated"}', false);
+
+do $$
+declare
+  v_result jsonb;
+begin
+  select public.create_event(
+    '30000000-0000-4000-8000-000000000001',
+    '{
+      "title": "RPC-created event",
+      "starts_at": "2026-11-20T01:00:00.000Z",
+      "ends_at": "2026-11-20T02:00:00.000Z",
+      "all_day": false,
+      "time_zone": "Asia/Manila",
+      "priority": "normal",
+      "status": "scheduled",
+      "visibility": "calendar",
+      "participant_ids": [],
+      "export_to_google": true
+    }'::jsonb
+  ) into v_result;
+
+  if v_result -> 'event' ->> 'title' <> 'RPC-created event' then
+    raise exception 'create_event RPC did not return the created event';
+  end if;
+end;
+$$;
+
+reset role;
