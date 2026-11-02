@@ -30,10 +30,8 @@ export function TeamPage() {
     )
   }
 
-  const canManage =
-    membership?.role === 'owner' ||
-    membership?.role === 'admin' ||
-    (user ? team.leadIds?.includes(user.id) : false)
+  const isWorkspaceAdmin = membership?.role === 'owner' || membership?.role === 'admin'
+  const canManage = isWorkspaceAdmin || (user ? team.leadIds?.includes(user.id) : false)
   const teamCalendars = (calendarsQuery.data ?? []).filter((calendar) => calendar.teamId === team.id)
   const teamMembers = (team.memberIds ?? []).map((userId) => ({
     userId,
@@ -117,8 +115,10 @@ export function TeamPage() {
             { onSuccess: () => setEditorOpen(false) },
           )
         }
-        onDelete={() =>
-          admin.deleteTeam.mutate(team.id, { onSuccess: () => setEditorOpen(false) })
+        onDelete={
+          isWorkspaceAdmin
+            ? () => admin.deleteTeam.mutate(team.id, { onSuccess: () => setEditorOpen(false) })
+            : undefined
         }
       />
     </div>
