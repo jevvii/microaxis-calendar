@@ -312,6 +312,48 @@ begin
 end;
 $$;
 
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', false);
+
+do $$
+begin
+  begin
+    update public.workspace_members
+    set role = 'owner'
+    where workspace_id = '10000000-0000-4000-8000-000000000001'
+      and user_id = 'a0000000-0000-4000-8000-000000000002';
+    raise exception 'An admin must not promote themselves to owner';
+  exception
+    when insufficient_privilege then
+      null;
+    when others then
+      if sqlerrm not like '%row-level security%' then
+        raise;
+      end if;
+  end;
+end;
+$$;
+
+do $$
+declare
+  v_count integer;
+begin
+  update public.workspace_members
+  set role = 'member'
+  where workspace_id = '10000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000001';
+
+  select count(*) into v_count
+  from public.workspace_members
+  where workspace_id = '10000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000001'
+    and role = 'owner';
+
+  if v_count <> 1 then
+    raise exception 'An admin must not remove or demote an owner';
+  end if;
+end;
+$$;
+
 reset role;
 
 do $$
