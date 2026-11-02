@@ -25,8 +25,10 @@ import { Skeleton } from '../components/ui/Skeleton'
 import { useCalendars } from '../hooks/useCalendars'
 import { useCategories } from '../hooks/useCategories'
 import { useEvents } from '../hooks/useEvents'
+import { useOnlineStatus } from '../hooks/useOnlineStatus'
 import { useCreateEvent, useDeleteEvent, useSetRsvp, useUpdateEvent } from '../hooks/useEventMutations'
 import { expandRecurrence } from '../lib/recurrence'
+import { cacheEventSummaries, readCachedEventSummaries, type CachedEventSummary } from '../lib/offlineCache'
 import { useAuth } from '../providers/AuthProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 import type { Event, EventInput, EventOccurrence, EventStatus, RsvpStatus } from '../types/domain'
@@ -82,6 +84,8 @@ export function CalendarPage() {
   } = useWorkspace()
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState<FilterState>(readFilters)
+  const online = useOnlineStatus()
+  const [cachedSummaries, setCachedSummaries] = useState<CachedEventSummary[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerMode, setDrawerMode] = useState<'view' | 'create' | 'edit'>('view')
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
@@ -147,6 +151,18 @@ export function CalendarPage() {
     window.localStorage.setItem(FILTERS_KEY, JSON.stringify(filters))
   }, [filters])
 
+  useEffect(() => {
+    if (events.length > 0) void cacheEventSummaries(events)
+  }, [events])
+
+  useEffect(() => {
+    if (online) {
+      setCachedSummaries([])
+      return
+    }
+    void readCachedEventSummaries(rangeStartIso, rangeEndIso).then(setCachedSummaries)
+  }, [online, rangeEndIso, rangeStartIso])
+
   function updateParams(patch: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams)
     for (const [key, value] of Object.entries(patch)) {
@@ -165,7 +181,7 @@ export function CalendarPage() {
   }
 
   function openNewEvent() {
-    if (calendars.length === 0) return
+    if (!online || calendars.length === 0) return
     setSelectedEvent(null)
     setDrawerMode('create')
     setConflict(null)
@@ -384,6 +400,7 @@ export function CalendarPage() {
         onNext={() => movePeriod(1)}
         onToday={() => updateParams({ date: null })}
         onNewEvent={openNewEvent}
+        offline={!online}
       />
 
       <FilterBar
@@ -395,7 +412,9 @@ export function CalendarPage() {
         teams={teams}
       />
 
-      {eventCount === 0 ? (
+      {eventCount === 0 && cachedSummaries.length > 0 ? (
+        <CachedEventList summaries={cachedSummaries} />
+      ) : eventCount === 0 ? (
         <CalendarEmptyState onNewEvent={openNewEvent} />
       ) : (
         <div className="flex-1 overflow-x-auto">
@@ -436,7 +455,7 @@ export function CalendarPage() {
         categories={categories}
         members={members}
         currentUserId={user?.id ?? ''}
-        canEdit={canEditSelected}
+        canEdit={canEditSelected && online}
         canModerate={membership?.role === 'owner' || membership?.role === 'admin'}
         saving={createEvent.isPending || updateEvent.isPending}
         deleting={deleteEvent.isPending}
@@ -459,6 +478,29 @@ export function CalendarPage() {
         }}
         onKeepDraft={() => setConflict(null)}
       />
+    </div>
+  )
+}
+
+function CachedEventList({ summaries }: { summaries: CachedEventSummary[] }) {
+  return (
+    <div className="px-4 py-5 sm:px-6">
+      <p className="font-mono text-[10px] uppercase tracking-[0.08em] text-ink-3">
+        Saved offline · read only
+      </p>
+      <div className="mt-3 divide-y divide-line border-y border-line">
+        {summaries.map((summary) => (
+          <div key={summary.id} className="flex flex-wrap items-baseline gap-x-4 gap-y-1 py-3">
+            <span className="w-24 shrink-0 font-mono text-[10px] text-ink-3">
+              {summary.allDay
+                ? format(new Date(summary.startsAt), 'MMM d')
+                : format(new Date(summary.startsAt), 'MMM d, h:mm a')}
+            </span>
+            <span className="min-w-0 flex-1 text-sm font-medium text-ink">{summary.title}</span>
+            <span className="text-xs text-ink-3">{summary.location ?? 'No location'}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

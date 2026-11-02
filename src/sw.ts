@@ -5,14 +5,38 @@ declare const self: ServiceWorkerGlobalScope & {
 }
 
 const precacheManifest = self.__WB_MANIFEST
-void precacheManifest
+const PRECACHE = 'microaxis-precache-v1'
 
-self.addEventListener('install', () => {
-  self.skipWaiting()
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches
+      .open(PRECACHE)
+      .then((cache) => cache.addAll(precacheManifest.map((entry) => entry.url)))
+      .then(() => self.skipWaiting()),
+  )
 })
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim())
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key !== PRECACHE).map((key) => caches.delete(key))),
+      )
+      .then(() => self.clients.claim()),
+  )
+})
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return
+  if (event.request.mode !== 'navigate') return
+
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match('/index.html')
+      return cached ?? Response.error()
+    }),
+  )
 })
 
 type PushPayload = {

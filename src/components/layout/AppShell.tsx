@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '../../lib/cn'
+import { OfflineBanner } from './OfflineBanner'
 
 export function AppShell({
   sidebar,
@@ -35,6 +36,7 @@ export function AppShell({
       </div>
 
       {mobileNav}
+      <OfflineBanner />
     </div>
   )
 }

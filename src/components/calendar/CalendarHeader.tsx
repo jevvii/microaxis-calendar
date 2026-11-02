@@ -15,6 +15,7 @@ export function CalendarHeader({
   onNext,
   onToday,
   onNewEvent,
+  offline = false,
 }: {
   title: string
   subtitle: string
@@ -26,6 +27,7 @@ export function CalendarHeader({
   onNext: () => void
   onToday: () => void
   onNewEvent: () => void
+  offline?: boolean
 }) {
   const rangeLabel =
     weekStart.getMonth() === weekEnd.getMonth()
@@ -63,6 +65,7 @@ export function CalendarHeader({
             size="sm"
             leadingIcon={<Plus size={14} weight="bold" aria-hidden />}
             onClick={onNewEvent}
+            disabled={offline}
           >
             New event
           </Button>
