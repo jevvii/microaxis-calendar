@@ -29,13 +29,21 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
-  if (event.request.mode !== 'navigate') return
 
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match('/index.html')
+        return cached ?? Response.error()
+      }),
+    )
+    return
+  }
+
+  // Serve precached app assets offline. Supabase API requests are not in the
+  // precache and therefore continue to use the network.
   event.respondWith(
-    fetch(event.request).catch(async () => {
-      const cached = await caches.match('/index.html')
-      return cached ?? Response.error()
-    }),
+    caches.match(event.request).then((cached) => cached ?? fetch(event.request)),
   )
 })
 
