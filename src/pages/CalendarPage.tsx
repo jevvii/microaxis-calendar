@@ -170,6 +170,20 @@ export function CalendarPage() {
   }, [online, rangeEndIso, rangeStartIso])
 
   useEffect(() => {
+    const eventId = searchParams.get('event')
+    if (!eventId || events.length === 0) return
+    const event = events.find((item) => item.id === eventId)
+    if (!event) return
+    setSelectedEvent(event)
+    setDrawerMode('view')
+    setConflict(null)
+    setDrawerOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete('event')
+    setSearchParams(next, { replace: true })
+  }, [events, searchParams, setSearchParams])
+
+  useEffect(() => {
     if (searchParams.get('new') !== '1' || !online || calendars.length === 0) return
     setSelectedEvent(null)
     setDrawerMode('create')
