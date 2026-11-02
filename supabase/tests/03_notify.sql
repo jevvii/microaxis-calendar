@@ -34,6 +34,43 @@ $$;
 
 reset role;
 
+insert into public.events (
+  id, workspace_id, calendar_id, created_by, title, starts_at, ends_at,
+  time_zone, priority, status, visibility
+)
+values (
+  '40000000-0000-4000-8000-000000000097',
+  '10000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000002',
+  'a0000000-0000-4000-8000-000000000001',
+  'Private team event',
+  '2026-11-10T01:00:00.000Z',
+  '2026-11-10T02:00:00.000Z',
+  'Asia/Manila',
+  'normal',
+  'scheduled',
+  'private'
+)
+on conflict (id) do nothing;
+
+insert into public.event_participants (event_id, user_id, status)
+values
+  ('40000000-0000-4000-8000-000000000097', 'a0000000-0000-4000-8000-000000000002', 'going'),
+  ('40000000-0000-4000-8000-000000000097', 'a0000000-0000-4000-8000-000000000003', 'going')
+on conflict (event_id, user_id) do nothing;
+
+do $$
+declare
+  v_count integer;
+begin
+  select count(*) into v_count
+  from public.event_recipient_ids('40000000-0000-4000-8000-000000000097');
+  if v_count <> 1 then
+    raise exception 'Private event recipient leak: expected 1, found %', v_count;
+  end if;
+end;
+$$;
+
 insert into public.notifications (
   id, workspace_id, user_id, type, title, dedupe_key
 )
