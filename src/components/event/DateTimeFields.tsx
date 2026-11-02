@@ -17,7 +17,7 @@ export function DateTimeFields({
   onChange: (field: 'startValue' | 'endValue', value: string) => void
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid min-w-0 gap-3">
       <Field label="Starts" htmlFor="event-start" error={startError}>
         <Input
           id="event-start"

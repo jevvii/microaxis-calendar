@@ -19,7 +19,7 @@ export function Field({
   optional?: boolean
 }) {
   return (
-    <div className={cn('grid gap-1.5', className)}>
+    <div className={cn('grid min-w-0 gap-1.5', className)}>
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={htmlFor} className="text-[13px] font-medium text-ink">
           {label}

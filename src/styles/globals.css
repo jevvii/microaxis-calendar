@@ -147,6 +147,16 @@ select {
   font: inherit;
 }
 
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'] {
+  min-width: 0;
+}
+
+input::-webkit-datetime-edit {
+  min-width: 0;
+}
+
 button {
   cursor: pointer;
 }
