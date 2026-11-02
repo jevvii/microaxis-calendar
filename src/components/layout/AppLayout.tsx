@@ -11,6 +11,7 @@ import type { Calendar } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
 import { IconButton } from '../ui/IconButton'
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
+import { Dialog } from '../ui/Dialog'
 import { NotificationPanel } from '../notifications/NotificationPanel'
 import { AppShell } from './AppShell'
 import { MobileNav } from './MobileNav'
@@ -21,12 +22,20 @@ import { Topbar } from './Topbar'
 export function AppLayout() {
   const provider = useDataProvider()
   const { user } = useAuth()
-  const { activeWorkspace, activeWorkspaceId, teams, loading } = useWorkspace()
+  const {
+    workspaces,
+    activeWorkspace,
+    activeWorkspaceId,
+    setActiveWorkspaceId,
+    teams,
+    loading,
+  } = useWorkspace()
   const { toast } = useToast()
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [calendars, setCalendars] = useState<Calendar[]>([])
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
   const notificationsState = useNotifications(activeWorkspaceId)
   useRealtimeWorkspace(activeWorkspaceId)
 
@@ -122,6 +131,7 @@ export function AppLayout() {
             })
           }}
           onNewEvent={() => navigate('/app/calendar?new=1')}
+          onOpenWorkspaceMenu={() => setWorkspaceMenuOpen(true)}
         />
       }
       topbar={
@@ -194,6 +204,39 @@ export function AppLayout() {
       }
     >
       <Outlet />
+
+      <Dialog
+        open={workspaceMenuOpen}
+        onOpenChange={setWorkspaceMenuOpen}
+        title="Switch workspace"
+        description="Calendars are scoped to the active workspace."
+        size="sm"
+      >
+        <div className="grid gap-1">
+          {workspaces.map((workspace) => (
+            <button
+              key={workspace.id}
+              type="button"
+              onClick={() => {
+                setActiveWorkspaceId(workspace.id)
+                setWorkspaceMenuOpen(false)
+                navigate('/app/calendar')
+              }}
+              className={`flex items-center gap-3 rounded-control px-3 py-2.5 text-left text-sm transition-colors hover:bg-surface-2 ${
+                workspace.id === activeWorkspaceId ? 'bg-accent-wash text-accent' : 'text-ink-2'
+              }`}
+            >
+              <span className="flex size-7 items-center justify-center rounded-control border border-line bg-surface font-mono text-[10px]">
+                {workspace.name.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium">{workspace.name}</span>
+              {workspace.id === activeWorkspaceId ? (
+                <span className="font-mono text-[9px] uppercase tracking-[0.05em]">Active</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </Dialog>
     </AppShell>
   )
 }

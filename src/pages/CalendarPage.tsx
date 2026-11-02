@@ -423,8 +423,8 @@ export function CalendarPage() {
         subtitle={`${eventCount} ${eventCount === 1 ? 'event' : 'events'} across ${calendars.length} calendars.${
           responseCount > 0 ? ` ${responseCount} need your response.` : ''
         }`}
-        weekStart={weekStart}
-        weekEnd={weekEnd}
+        weekStart={view === 'month' ? monthStart : weekStart}
+        weekEnd={view === 'month' ? addDays(monthEnd, -1) : weekEnd}
         view={view}
         onViewChange={(nextView) => updateParams({ view: nextView })}
         onPrev={() => movePeriod(-1)}
