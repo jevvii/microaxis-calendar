@@ -31,6 +31,7 @@ import { useCreateEvent, useDeleteEvent, useSetRsvp, useUpdateEvent } from '../h
 import { expandRecurrence } from '../lib/recurrence'
 import { cacheEventSummaries, readCachedEventSummaries, type CachedEventSummary } from '../lib/offlineCache'
 import { useAuth } from '../providers/AuthProvider'
+import { useToast } from '../providers/ToastProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 import type { Event, EventInput, EventOccurrence, EventStatus, RsvpStatus } from '../types/domain'
 import { calendarRole, canEditEvent } from '../lib/permissions'
@@ -75,6 +76,7 @@ function readFilters(): FilterState {
 
 export function CalendarPage() {
   const { user } = useAuth()
+  const { toast } = useToast()
   const {
     activeWorkspace,
     activeWorkspaceId,
@@ -235,6 +237,15 @@ export function CalendarPage() {
           setDrawerOpen(false)
           setSelectedEvent(null)
         },
+        onError: (reason) => {
+          console.error('create event failed', reason)
+          toast({
+            title: 'Could not create the event',
+            description: reason instanceof Error ? reason.message : 'The event was not saved.',
+            tone: 'error',
+            duration: 10_000,
+          })
+        },
       })
       return
     }
@@ -251,6 +262,15 @@ export function CalendarPage() {
           setSelectedEvent(result.event)
           setDrawerMode('view')
           setConflict(null)
+        },
+        onError: (reason) => {
+          console.error('update event failed', reason)
+          toast({
+            title: 'Could not save the event',
+            description: reason instanceof Error ? reason.message : 'The event was not saved.',
+            tone: 'error',
+            duration: 10_000,
+          })
         },
       },
     )
@@ -272,6 +292,15 @@ export function CalendarPage() {
           }
           setSelectedEvent(result.event)
           setConflict(null)
+        },
+        onError: (reason) => {
+          console.error('update event status failed', reason)
+          toast({
+            title: 'Could not change the event status',
+            description: reason instanceof Error ? reason.message : 'The status was not changed.',
+            tone: 'error',
+            duration: 10_000,
+          })
         },
       },
     )
@@ -295,7 +324,19 @@ export function CalendarPage() {
         ]
 
     setSelectedEvent({ ...selectedEvent, participants })
-    setRsvp.mutate({ eventId: selectedEvent.id, status })
+    setRsvp.mutate(
+      { eventId: selectedEvent.id, status },
+      {
+        onError: (reason) => {
+          console.error('rsvp failed', reason)
+          toast({
+            title: 'Could not save your response',
+            description: reason instanceof Error ? reason.message : 'Your response was not saved.',
+            tone: 'error',
+          })
+        },
+      },
+    )
   }
 
   function handleDelete() {
@@ -306,6 +347,14 @@ export function CalendarPage() {
         onSuccess: () => {
           setDrawerOpen(false)
           setSelectedEvent(null)
+        },
+        onError: (reason) => {
+          console.error('delete event failed', reason)
+          toast({
+            title: 'Could not delete the event',
+            description: reason instanceof Error ? reason.message : 'The event was not deleted.',
+            tone: 'error',
+          })
         },
       },
     )
