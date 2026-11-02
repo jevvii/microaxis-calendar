@@ -22,6 +22,7 @@ function makeEvent(overrides: Partial<EventOccurrence> = {}): EventOccurrence {
     priority: 'normal',
     status: 'scheduled',
     visibility: 'calendar',
+    exportToGoogle: true,
     recurrenceRule: null,
     recurrenceUntil: null,
     recurrenceExceptions: [],

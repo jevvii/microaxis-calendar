@@ -36,6 +36,7 @@ const baseEvent: Event = {
   priority: 'normal',
   status: 'scheduled',
   visibility: 'calendar',
+  exportToGoogle: true,
   recurrenceRule: null,
   recurrenceUntil: null,
   recurrenceExceptions: [],

@@ -137,6 +137,7 @@ export type Event = {
   priority: EventPriority
   status: EventStatus
   visibility: EventVisibility
+  exportToGoogle: boolean
   recurrenceRule: string | null
   recurrenceUntil: ISODateString | null
   recurrenceExceptions: ISODateString[]
@@ -244,6 +245,7 @@ export type EventInput = {
   priority: EventPriority
   status?: EventStatus
   visibility: EventVisibility
+  exportToGoogle?: boolean
   recurrenceRule?: string | null
   recurrenceUntil?: string | null
   participantIds?: string[]

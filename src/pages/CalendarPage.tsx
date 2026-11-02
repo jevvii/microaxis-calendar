@@ -53,6 +53,7 @@ function eventToInput(event: Event): EventInput {
     priority: event.priority,
     status: event.status,
     visibility: event.visibility,
+    exportToGoogle: event.exportToGoogle,
     recurrenceRule: event.recurrenceRule,
     recurrenceUntil: event.recurrenceUntil,
     participantIds: event.participants?.map((participant) => participant.userId) ?? [],

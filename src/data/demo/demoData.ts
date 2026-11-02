@@ -364,6 +364,7 @@ const defaultEvent = {
   priority: 'normal' as const,
   status: 'scheduled' as const,
   visibility: 'calendar' as const,
+  exportToGoogle: true,
   recurrenceRule: null,
   recurrenceUntil: null,
   recurrenceExceptions: [],

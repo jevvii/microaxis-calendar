@@ -52,6 +52,10 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           comments: parsed.comments ?? [],
           attachments: parsed.attachments ?? [],
           activity: parsed.activity ?? [],
+          events: (parsed.events ?? []).map((event) => ({
+            ...event,
+            exportToGoogle: event.exportToGoogle ?? true,
+          })),
           notificationPreferences: parsed.notificationPreferences ?? {},
           auditLog: parsed.auditLog ?? [],
         }
@@ -295,6 +299,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         priority: input.priority,
         status: input.status ?? 'scheduled',
         visibility: input.visibility,
+        exportToGoogle: input.exportToGoogle ?? true,
         recurrenceRule: input.recurrenceRule ?? null,
         recurrenceUntil: input.recurrenceUntil ?? null,
         recurrenceExceptions: [],
@@ -347,6 +352,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         priority: input.priority,
         status: input.status ?? current.status,
         visibility: input.visibility,
+        exportToGoogle: input.exportToGoogle ?? true,
         recurrenceRule: input.recurrenceRule ?? null,
         recurrenceUntil: input.recurrenceUntil ?? null,
         version: current.version + 1,

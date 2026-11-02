@@ -357,6 +357,7 @@ export function createSupabaseProvider(): DataProvider {
           priority: input.priority,
           status: input.status ?? 'scheduled',
           visibility: input.visibility,
+          export_to_google: input.exportToGoogle ?? true,
           recurrence_rule: input.recurrenceRule ?? null,
           recurrence_until: input.recurrenceUntil ?? null,
           recurrence_exceptions: [],
@@ -414,6 +415,7 @@ export function createSupabaseProvider(): DataProvider {
           priority: input.priority,
           status: input.status ?? 'scheduled',
           visibility: input.visibility,
+          export_to_google: input.exportToGoogle ?? true,
           recurrence_rule: input.recurrenceRule ?? null,
           recurrence_until: input.recurrenceUntil ?? null,
         })

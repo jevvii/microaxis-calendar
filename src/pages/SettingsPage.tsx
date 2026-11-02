@@ -1,9 +1,11 @@
-import { Bell, GoogleLogo, Moon, Sun, Desktop } from '@phosphor-icons/react'
+import { Bell, Moon, Sun, Desktop } from '@phosphor-icons/react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../providers/AuthProvider'
 import { useTheme } from '../hooks/useTheme'
 import type { Theme } from '../providers/ThemeProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
+import { useCalendars } from '../hooks/useCalendars'
+import { GoogleCalendarSettings } from '../components/settings/GoogleCalendarSettings'
 import { Avatar } from '../components/ui/Avatar'
 import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
@@ -11,7 +13,8 @@ import { SegmentedControl } from '../components/ui/SegmentedControl'
 
 export function SettingsPage() {
   const { user, isDemo } = useAuth()
-  const { activeWorkspace, membership } = useWorkspace()
+  const { activeWorkspace, activeWorkspaceId, membership } = useWorkspace()
+  const calendarsQuery = useCalendars(activeWorkspaceId)
   const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -68,23 +71,9 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="mt-8 border-t border-line pt-6">
-        <h2 className="text-sm font-semibold">Integrations</h2>
-        <div className="mt-3 flex items-center justify-between gap-4 rounded-panel border border-line bg-surface p-4">
-          <div className="flex items-start gap-3">
-            <GoogleLogo size={18} className="mt-0.5 text-ink-3" aria-hidden />
-            <div>
-              <p className="text-sm font-medium">Google Calendar</p>
-              <p className="mt-1 text-xs leading-5 text-ink-3">
-                Connect later to export selected calendars into a dedicated MicroAxis calendar.
-              </p>
-            </div>
-          </div>
-          <Button variant="secondary" size="sm" disabled>
-            Not connected
-          </Button>
-        </div>
-      </section>
+      <div className="mt-8 border-t border-line pt-6">
+        <GoogleCalendarSettings calendars={calendarsQuery.data ?? []} />
+      </div>
 
       <section className="mt-8 border-t border-line pt-6">
         <h2 className="text-sm font-semibold">Workspace</h2>

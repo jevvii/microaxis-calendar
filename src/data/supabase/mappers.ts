@@ -97,6 +97,7 @@ export type EventRow = {
   priority: 'low' | 'normal' | 'high' | 'urgent'
   status: 'scheduled' | 'tentative' | 'cancelled'
   visibility: 'calendar' | 'participants' | 'private'
+  export_to_google?: boolean
   recurrence_rule: string | null
   recurrence_until: string | null
   recurrence_exceptions: unknown
@@ -316,6 +317,7 @@ export function mapEventRow(
     priority: row.priority,
     status: row.status,
     visibility: row.visibility,
+    exportToGoogle: row.export_to_google ?? true,
     recurrenceRule: row.recurrence_rule,
     recurrenceUntil: row.recurrence_until,
     recurrenceExceptions: Array.isArray(row.recurrence_exceptions)

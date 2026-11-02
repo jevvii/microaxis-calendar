@@ -21,6 +21,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     priority: 'normal',
     status: 'scheduled',
     visibility: 'calendar',
+    exportToGoogle: true,
     recurrenceRule: null,
     recurrenceUntil: null,
     recurrenceExceptions: [],

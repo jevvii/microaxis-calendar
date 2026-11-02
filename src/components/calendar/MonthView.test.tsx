@@ -20,6 +20,7 @@ const baseEvent: EventOccurrence = {
   priority: 'high',
   status: 'scheduled',
   visibility: 'calendar',
+  exportToGoogle: true,
   recurrenceRule: null,
   recurrenceUntil: null,
   recurrenceExceptions: [],

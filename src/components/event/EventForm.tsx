@@ -206,6 +206,16 @@ export function EventForm({
         </Field>
       </div>
 
+      <label className="flex min-h-9 cursor-pointer items-center gap-2.5 text-[13px] text-ink">
+        <input
+          type="checkbox"
+          checked={draft.exportToGoogle}
+          onChange={(event) => setField('exportToGoogle', event.target.checked)}
+          className="size-4 accent-[var(--accent)]"
+        />
+        Export this event to my Google Calendar
+      </label>
+
       <ParticipantPicker
         members={members}
         selectedIds={draft.participantIds}

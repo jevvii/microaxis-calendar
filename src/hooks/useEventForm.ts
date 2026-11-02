@@ -27,6 +27,7 @@ export type EventFormDraft = {
   priority: EventPriority
   status: EventStatus
   visibility: EventVisibility
+  exportToGoogle: boolean
   participantIds: string[]
   repeatFrequency: RepeatFrequency
   repeatInterval: number
@@ -109,6 +110,7 @@ export function createInitialDraft(
     priority: initial?.priority ?? 'normal',
     status: initial?.status ?? 'scheduled',
     visibility: initial?.visibility ?? 'calendar',
+    exportToGoogle: initial?.exportToGoogle ?? true,
     participantIds: initial?.participants?.map((participant) => participant.userId) ?? [],
     ...parseRule(initial?.recurrenceRule ?? null),
   }
@@ -201,6 +203,7 @@ export function useEventForm({
       priority: draft.priority,
       status: draft.status,
       visibility: draft.visibility,
+      exportToGoogle: draft.exportToGoogle,
       recurrenceRule,
       recurrenceUntil,
       participantIds: draft.participantIds,

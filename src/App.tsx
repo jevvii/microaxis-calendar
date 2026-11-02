@@ -6,6 +6,7 @@ import { DataProviderProvider } from './data/provider'
 import { AuthPage } from './pages/AuthPage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import { CalendarPage } from './pages/CalendarPage'
+import { GoogleCallbackPage } from './pages/GoogleCallbackPage'
 import { InvitePage } from './pages/InvitePage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { OfflinePage } from './pages/OfflinePage'
@@ -66,6 +67,7 @@ export default function App() {
                       <Route path="calendar" element={<CalendarPage />} />
                       <Route path="notifications" element={<NotificationsPage />} />
                       <Route path="settings" element={<SettingsPage />} />
+                      <Route path="google/callback" element={<GoogleCallbackPage />} />
                       <Route path="workspace" element={<WorkspacePage />} />
                       <Route path="team/:teamId" element={<TeamPage />} />
                     </Route>
