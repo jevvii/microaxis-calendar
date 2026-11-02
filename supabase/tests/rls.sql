@@ -160,6 +160,34 @@ begin
 end;
 $$;
 
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', false);
+
+do $$
+begin
+  begin
+    insert into public.calendar_shares (
+      calendar_id, subject_type, subject_id, role, hide_details, created_by
+    )
+    values (
+      '30000000-0000-4000-8000-000000000001',
+      'team',
+      '20000000-0000-4000-8000-000000000004',
+      'viewer',
+      false,
+      'a0000000-0000-4000-8000-000000000001'
+    );
+    raise exception 'A calendar must not be shared with another workspace team';
+  exception
+    when insufficient_privilege then
+      null;
+    when others then
+      if sqlerrm not like '%row-level security%' then
+        raise;
+      end if;
+  end;
+end;
+$$;
+
 select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000004', false);
 
 do $$
