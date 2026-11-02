@@ -194,6 +194,17 @@ export type EventActivity = {
   actor?: Profile
 }
 
+export type NotificationPreferences = {
+  reminders: boolean
+  email: boolean
+  push: boolean
+  newSharedEvent: boolean
+  mentions: boolean
+  dailyAgenda: boolean
+  quietHoursStart: string
+  quietHoursEnd: string
+}
+
 export type Notification = {
   id: string
   workspaceId: string

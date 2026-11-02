@@ -7,6 +7,7 @@ import type {
   EventComment,
   EventParticipant,
   Notification,
+  NotificationPreferences,
   Profile,
   Team,
   TeamMembership,
@@ -648,6 +649,17 @@ export const demoActivity: EventActivity[] = [
   },
 ]
 
+export const defaultNotificationPreferences: NotificationPreferences = {
+  reminders: true,
+  email: true,
+  push: false,
+  newSharedEvent: true,
+  mentions: true,
+  dailyAgenda: false,
+  quietHoursStart: '22:00',
+  quietHoursEnd: '08:00',
+}
+
 export type DemoState = {
   currentUserId: string
   profiles: Profile[]
@@ -662,6 +674,7 @@ export type DemoState = {
   comments: EventComment[]
   attachments: EventAttachment[]
   activity: EventActivity[]
+  notificationPreferences: Record<string, NotificationPreferences>
 }
 
 export function createDemoSeed(): DemoState {
@@ -679,6 +692,12 @@ export function createDemoSeed(): DemoState {
     comments: structuredClone(demoComments),
     attachments: structuredClone(demoAttachments),
     activity: structuredClone(demoActivity),
+    notificationPreferences: {
+      [DEMO_USER_ID]: structuredClone(defaultNotificationPreferences),
+      'a0000000-0000-4000-8000-000000000002': structuredClone(defaultNotificationPreferences),
+      'a0000000-0000-4000-8000-000000000003': structuredClone(defaultNotificationPreferences),
+      'a0000000-0000-4000-8000-000000000004': structuredClone(defaultNotificationPreferences),
+    },
   }
 }
 

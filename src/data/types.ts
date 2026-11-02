@@ -8,6 +8,7 @@ import type {
   Workspace,
   WorkspaceMembership,
   RsvpStatus,
+  NotificationPreferences,
   EventComment,
   EventAttachment,
   EventActivity,
@@ -59,4 +60,6 @@ export type DataProvider = {
   deleteAttachment: (attachmentId: string) => Promise<void>
   getAttachmentUrl: (storagePath: string) => Promise<string>
   listActivity: (eventId: string) => Promise<EventActivity[]>
+  getNotificationPreferences: () => Promise<NotificationPreferences>
+  updateNotificationPreferences: (preferences: NotificationPreferences) => Promise<void>
 }

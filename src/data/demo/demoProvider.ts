@@ -7,6 +7,7 @@ import type {
   EventComment,
   EventInput,
   Notification,
+  NotificationPreferences,
   RsvpStatus,
   Team,
   Workspace,
@@ -20,7 +21,12 @@ import type {
   EventRange,
   UpdateEventResult,
 } from '../types'
-import { createDemoSeed, DEMO_STORAGE_KEY, type DemoState } from './demoData'
+import {
+  createDemoSeed,
+  DEMO_STORAGE_KEY,
+  defaultNotificationPreferences,
+  type DemoState,
+} from './demoData'
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
@@ -40,6 +46,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           comments: parsed.comments ?? [],
           attachments: parsed.attachments ?? [],
           activity: parsed.activity ?? [],
+          notificationPreferences: parsed.notificationPreferences ?? {},
         }
       }
     } catch {
@@ -512,6 +519,23 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           ...clone(activity),
           actor: state.profiles.find((profile) => profile.id === activity.actorId),
         }))
+    },
+
+    async getNotificationPreferences(): Promise<NotificationPreferences> {
+      return {
+        ...defaultNotificationPreferences,
+        ...(state.notificationPreferences[state.currentUserId] ?? {}),
+      }
+    },
+
+    async updateNotificationPreferences(preferences: NotificationPreferences) {
+      saveState({
+        ...state,
+        notificationPreferences: {
+          ...state.notificationPreferences,
+          [state.currentUserId]: preferences,
+        },
+      })
     },
 
     async setRsvp(eventId: string, status: RsvpStatus) {

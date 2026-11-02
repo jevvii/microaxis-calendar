@@ -2,14 +2,17 @@ import { Bell, MagnifyingGlass, Plus } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useDataProvider } from '../../data/provider'
+import { useNotifications } from '../../hooks/useNotifications'
 import { useRealtimeWorkspace } from '../../hooks/useRealtime'
 import { useAuth } from '../../providers/AuthProvider'
 import { useWorkspace } from '../../providers/WorkspaceProvider'
 import { useToast } from '../../providers/ToastProvider'
-import type { Calendar, Notification } from '../../types/domain'
+import type { Calendar } from '../../types/domain'
 import { Avatar } from '../ui/Avatar'
 import { Button } from '../ui/Button'
 import { IconButton } from '../ui/IconButton'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/Popover'
+import { NotificationPanel } from '../notifications/NotificationPanel'
 import { AppShell } from './AppShell'
 import { MobileNav } from './MobileNav'
 import { Sidebar } from './Sidebar'
@@ -25,31 +28,23 @@ export function AppLayout() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [calendars, setCalendars] = useState<Calendar[]>([])
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const notificationsState = useNotifications(activeWorkspaceId)
   useRealtimeWorkspace(activeWorkspaceId)
 
   useEffect(() => {
     if (!activeWorkspaceId) {
       setCalendars([])
-      setNotifications([])
       return
     }
 
     let cancelled = false
-    Promise.all([
-      provider.listCalendars(activeWorkspaceId),
-      provider.listNotifications(activeWorkspaceId),
-    ])
-      .then(([nextCalendars, nextNotifications]) => {
-        if (cancelled) return
-        setCalendars(nextCalendars)
-        setNotifications(nextNotifications)
+    provider
+      .listCalendars(activeWorkspaceId)
+      .then((nextCalendars) => {
+        if (!cancelled) setCalendars(nextCalendars)
       })
       .catch(() => {
-        if (!cancelled) {
-          setCalendars([])
-          setNotifications([])
-        }
+        if (!cancelled) setCalendars([])
       })
 
     return () => {
@@ -57,7 +52,7 @@ export function AppLayout() {
     }
   }, [activeWorkspaceId, provider])
 
-  const unreadCount = notifications.filter((notification) => !notification.readAt).length
+  const unreadCount = notificationsState.unreadCount
 
   function updateParams(patch: Record<string, string | null>) {
     const next = new URLSearchParams(searchParams)
@@ -153,17 +148,29 @@ export function AppLayout() {
               >
                 <MagnifyingGlass size={15} aria-hidden />
               </IconButton>
-              <IconButton
-                label="Notifications"
-                size="sm"
-                className="relative"
-                onClick={() => navigate('/app/notifications')}
-              >
-                <Bell size={15} aria-hidden />
-                {unreadCount > 0 ? (
-                  <span className="absolute right-1 top-1 size-1.5 rounded-full bg-accent" />
-                ) : null}
-              </IconButton>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <IconButton label="Notifications" size="sm" className="relative">
+                    <Bell size={15} aria-hidden />
+                    {unreadCount > 0 ? (
+                      <span className="absolute right-1 top-1 size-1.5 rounded-full bg-accent" />
+                    ) : null}
+                  </IconButton>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-auto p-0">
+                  <NotificationPanel
+                    notifications={notificationsState.notifications}
+                    unreadCount={unreadCount}
+                    onMarkRead={(notification) => notificationsState.markRead(notification.id)}
+                    onMarkAllRead={notificationsState.markAllRead}
+                    onSelect={(notification) => {
+                      notificationsState.markRead(notification.id)
+                      if (notification.href) navigate(notification.href)
+                    }}
+                    onViewAll={() => navigate('/app/notifications')}
+                  />
+                </PopoverContent>
+              </Popover>
               <ThemeToggle />
               <Button size="sm" variant="primary" leadingIcon={<Plus size={14} weight="bold" aria-hidden />} onClick={() => updateParams({ new: '1' })}>
                 <span className="hidden sm:inline">New event</span>

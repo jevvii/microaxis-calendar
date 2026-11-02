@@ -37,6 +37,8 @@ function createUnconfiguredProvider(): DataProvider {
     deleteAttachment: notConfigured,
     getAttachmentUrl: notConfigured,
     listActivity: notConfigured,
+    getNotificationPreferences: notConfigured,
+    updateNotificationPreferences: notConfigured,
   }
 }
 

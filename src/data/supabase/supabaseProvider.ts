@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase'
 import { validateAttachmentFile } from '../../lib/attachments'
 import { compressImage } from '../../lib/imageCompression'
+import { normalizeNotificationPreferences } from '../../lib/notificationPreferences'
 import type {
   Calendar,
   CalendarKind,
@@ -646,6 +647,27 @@ export function createSupabaseProvider(): DataProvider {
 
       throwIf(error)
       return ((data ?? []) as unknown as EventActivityRow[]).map(mapEventActivityRow)
+    },
+
+    async getNotificationPreferences() {
+      const userId = await currentUserId()
+      const { data, error } = await client()
+        .from('profiles')
+        .select('notification_preferences')
+        .eq('id', userId)
+        .single<{ notification_preferences: unknown }>()
+
+      throwIf(error)
+      return normalizeNotificationPreferences(data?.notification_preferences)
+    },
+
+    async updateNotificationPreferences(preferences) {
+      const userId = await currentUserId()
+      const { error } = await client()
+        .from('profiles')
+        .update({ notification_preferences: preferences })
+        .eq('id', userId)
+      throwIf(error)
     },
 
     async setRsvp(eventId: string, status) {
