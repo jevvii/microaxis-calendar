@@ -22,6 +22,16 @@ In-app notifications are created immediately. Email and push are scheduled aroun
 
 Busy-only share recipients receive a time-only reminder; they never receive event titles, descriptions, locations, attachments, or comment text.
 
+## Immediate notifications
+
+Database triggers create in-app notifications for:
+
+- shared event creation
+- event updates and cancellations
+- comment mentions
+
+They use the same recipient resolution and busy-only masking as reminders. Email and push rows are queued only when the recipient’s preference allows the channel; the worker applies quiet hours before delivery.
+
 ## Outbox delivery
 
 `notify` runs in `outbox` mode every minute:

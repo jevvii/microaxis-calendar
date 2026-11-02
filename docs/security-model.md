@@ -18,6 +18,9 @@ The helper functions in `202611020003_rls.sql` are `security definer`, `stable`,
 
 There is no path from workspace Admin to another user’s personal calendar unless the owner shares it.
 
+Every calendar access check also requires live workspace membership and a live workspace. Removing a member triggers cleanup of their team memberships, user-targeted calendar shares, export preferences, reminder rows, and queued notifications. A soft-deleted workspace therefore revokes calendar access immediately, not just from the workspace list.
+
+
 ## Busy-only shares
 
 `calendar_has_full_details(calendar_id, user_id)` is true only when at least one access path is not marked `hide_details`.
@@ -39,6 +42,9 @@ There is no path from workspace Admin to another user’s personal calendar unle
 Google OAuth tokens are stored only in `google_connections`, encrypted by the Edge Function before storage. Authenticated clients have column-level access to safe status fields only; the token columns are revoked. `notification_outbox` is service-role only.
 
 ## Storage
+
+A workspace may store at most 50 MB of event attachments, and a single file is limited to 10 MB. Both limits are enforced server-side.
+
 
 Bucket `event-attachments` is private, limited to 10 MB, and restricted to an explicit MIME allowlist. Object paths are `<workspace_id>/<event_id>/<uuid>.<ext>`. Insert and select require event access; delete requires the uploader or calendar Manager.
 
