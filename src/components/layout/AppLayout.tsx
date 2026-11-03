@@ -1,4 +1,5 @@
-import { Bell, MagnifyingGlass } from '@phosphor-icons/react'
+import { Bell, CaretUpDown, MagnifyingGlass } from '@phosphor-icons/react'
+import { format } from 'date-fns'
 import { useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useCalendars } from '../../hooks/useCalendars'
@@ -13,6 +14,7 @@ import { Dialog } from '../ui/Dialog'
 import { NotificationPanel } from '../notifications/NotificationPanel'
 import { AppShell } from './AppShell'
 import { MobileNav } from './MobileNav'
+import { MobileStudioSheet } from './MobileStudioSheet'
 import { Sidebar } from './Sidebar'
 import { ThemeToggle } from './ThemeToggle'
 import { Topbar } from './Topbar'
@@ -32,11 +34,23 @@ export function AppLayout() {
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
+  const [studioSheetOpen, setStudioSheetOpen] = useState(false)
   const calendarsQuery = useCalendars(activeWorkspaceId)
   const calendars = calendarsQuery.data ?? []
   const notificationsState = useNotifications(activeWorkspaceId)
   useRealtimeWorkspace(activeWorkspaceId, refresh)
 
+  const sidebarCalendars = calendars.map((calendar) => ({
+    id: calendar.id,
+    name: calendar.name,
+    color: calendar.color,
+    kind: calendar.kind,
+  }))
+  const sidebarTeams = teams.map((team) => ({
+    id: team.id,
+    name: team.name,
+    memberCount: team.memberCount,
+  }))
 
   const unreadCount = notificationsState.unreadCount
 
@@ -50,13 +64,35 @@ export function AppLayout() {
   }
 
   const activeCalendarId = searchParams.get('calendar')
+  const isCalendarRoute = location.pathname.includes('/calendar')
+  const showingToday =
+    !searchParams.get('date') || searchParams.get('date') === format(new Date(), 'yyyy-MM-dd')
   const mobileActive = location.pathname.includes('/notifications')
     ? 'inbox'
     : location.pathname.includes('/settings') ||
         location.pathname.includes('/workspace') ||
         location.pathname.includes('/team/')
       ? 'more'
-      : 'calendar'
+      : isCalendarRoute
+        ? showingToday
+          ? 'today'
+          : 'calendar'
+        : 'more'
+
+  function selectWorkspace(workspaceId: string) {
+    setStudioSheetOpen(false)
+    setActiveWorkspaceId(workspaceId)
+    navigate('/app/calendar')
+  }
+
+  function selectCalendar(calendarId: string) {
+    setStudioSheetOpen(false)
+    if (!isCalendarRoute) {
+      navigate(`/app/calendar?calendar=${calendarId}`)
+      return
+    }
+    updateParams({ calendar: activeCalendarId === calendarId ? null : calendarId })
+  }
 
   if (!loading && !activeWorkspace) {
     return (
@@ -86,17 +122,8 @@ export function AppLayout() {
           workspaceName={activeWorkspace?.name ?? 'MicroAxis Calendar'}
           userName={user?.fullName ?? 'Signed-in user'}
           userAvatar={user?.avatarUrl}
-          calendars={calendars.map((calendar) => ({
-            id: calendar.id,
-            name: calendar.name,
-            color: calendar.color,
-            kind: calendar.kind,
-          }))}
-          teams={teams.map((team) => ({
-            id: team.id,
-            name: team.name,
-            memberCount: team.memberCount,
-          }))}
+          calendars={sidebarCalendars}
+          teams={sidebarTeams}
           activeCalendarId={activeCalendarId}
           unreadCount={unreadCount}
           onSelectCalendar={(calendarId) => {
@@ -117,12 +144,25 @@ export function AppLayout() {
         <Topbar
           left={
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold tracking-[-0.01em]">
-                {activeWorkspace?.name ?? 'MicroAxis Calendar'}
-              </p>
-              <p className="hidden font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3 sm:block">
-                Calendar · {user?.timezone ?? 'Asia/Manila'}
-              </p>
+              <button
+                type="button"
+                onClick={() => setStudioSheetOpen(true)}
+                aria-label="Open workspace and calendar selection"
+                className="flex min-h-11 w-full items-center gap-1.5 text-left lg:hidden"
+              >
+                <span className="min-w-0 truncate text-[13px] font-semibold tracking-[-0.01em]">
+                  {activeWorkspace?.name ?? 'MicroAxis Calendar'}
+                </span>
+                <CaretUpDown size={14} className="shrink-0 text-ink-3" aria-hidden />
+              </button>
+              <div className="hidden lg:block">
+                <p className="truncate text-[13px] font-semibold tracking-[-0.01em]">
+                  {activeWorkspace?.name ?? 'MicroAxis Calendar'}
+                </p>
+                <p className="hidden font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3 sm:block">
+                  Calendar · {user?.timezone ?? 'Asia/Manila'}
+                </p>
+              </div>
             </div>
           }
           right={
@@ -176,7 +216,7 @@ export function AppLayout() {
           unreadCount={unreadCount}
           onSelect={(destination) => {
             if (destination === 'today') navigate('/app/calendar')
-            if (destination === 'calendar') navigate('/app/calendar')
+            if (destination === 'calendar' && !isCalendarRoute) navigate('/app/calendar')
             if (destination === 'inbox') navigate('/app/notifications')
             if (destination === 'more') navigate('/app/settings')
           }}
@@ -217,6 +257,22 @@ export function AppLayout() {
           ))}
         </div>
       </Dialog>
+
+      <MobileStudioSheet
+        open={studioSheetOpen}
+        onOpenChange={setStudioSheetOpen}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId}
+        calendars={sidebarCalendars}
+        teams={sidebarTeams}
+        activeCalendarId={activeCalendarId}
+        onSelectWorkspace={selectWorkspace}
+        onSelectCalendar={selectCalendar}
+        onSelectTeam={(teamId) => {
+          setStudioSheetOpen(false)
+          navigate(`/app/team/${teamId}`)
+        }}
+      />
     </AppShell>
   )
 }
