@@ -1,6 +1,7 @@
 import { CircleNotch, WarningCircle } from '@phosphor-icons/react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { clearPendingInvite, readPendingInvite } from '../lib/pendingInvite'
 import { useAuth } from '../providers/AuthProvider'
 import { Button } from '../components/ui/Button'
 import { Logo } from '../components/layout/Logo'
@@ -11,7 +12,9 @@ export function AuthCallbackPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/app/calendar', { replace: true })
+      const pendingInvite = readPendingInvite()
+      if (pendingInvite) clearPendingInvite()
+      navigate(pendingInvite ? `/invite/${pendingInvite}` : '/app/calendar', { replace: true })
     }
   }, [loading, navigate, user])
 

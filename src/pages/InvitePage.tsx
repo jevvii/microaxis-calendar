@@ -1,9 +1,14 @@
 import { EnvelopeSimple } from '@phosphor-icons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { acceptInvite } from '../lib/auth'
+import {
+  clearPendingInvite,
+  rememberPendingInvite,
+} from '../lib/pendingInvite'
 import { useAuth } from '../providers/AuthProvider'
 import { useToast } from '../providers/ToastProvider'
+import { useWorkspace } from '../providers/WorkspaceProvider'
 import { Button } from '../components/ui/Button'
 import { Logo } from '../components/layout/Logo'
 
@@ -11,9 +16,15 @@ export function InvitePage() {
   const { token } = useParams()
   const { user, isDemo } = useAuth()
   const { toast } = useToast()
+  const { setActiveWorkspaceId, refresh } = useWorkspace()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Keep the invitation across the sign-in redirect so the user comes back here.
+  useEffect(() => {
+    if (token && !user) rememberPendingInvite(token)
+  }, [token, user])
 
   async function accept() {
     if (!token) return
@@ -26,6 +37,12 @@ export function InvitePage() {
       setError(result.error)
       return
     }
+
+    clearPendingInvite()
+    // Select the workspace that was just joined; changing the active workspace
+    // reloads the workspace list, members, and teams for the new membership.
+    if (result.workspaceId) setActiveWorkspaceId(result.workspaceId)
+    refresh()
 
     toast({ title: 'Invitation accepted', tone: 'success' })
     navigate('/app/calendar')
@@ -61,7 +78,14 @@ export function InvitePage() {
           ) : null}
 
           {!user ? (
-            <Button variant="primary" className="mt-6 w-full" onClick={() => navigate('/auth')}>
+            <Button
+              variant="primary"
+              className="mt-6 w-full"
+              onClick={() => {
+                if (token) rememberPendingInvite(token)
+                navigate('/auth')
+              }}
+            >
               Sign in to continue
             </Button>
           ) : (
