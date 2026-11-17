@@ -71,6 +71,27 @@ describe('demo provider', () => {
     expect(stale.current?.title).toBe('First edit')
   })
 
+  it('holds a conflicting event and creates a pending request', async () => {
+    const provider = createDemoProvider(localStorage)
+    const created = await provider.createEvent({
+      ...eventInput,
+      title: 'Overlap check',
+      startsAt: '2026-11-06T02:30:00.000Z',
+      endsAt: '2026-11-06T03:30:00.000Z',
+    })
+
+    expect(created.status).toBe('tentative')
+
+    const requests = await provider.listScheduleRequests(
+      '10000000-0000-4000-8000-000000000001',
+    )
+    expect(
+      requests.some(
+        (request) => request.eventId === created.id && request.status === 'pending',
+      ),
+    ).toBe(true)
+  })
+
   it('persists demo changes across provider instances', async () => {
     const first = createDemoProvider(localStorage)
     const created = await first.createEvent({ ...eventInput, title: 'Persisted review' })

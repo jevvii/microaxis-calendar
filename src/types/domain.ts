@@ -18,6 +18,11 @@ export type NotificationType =
   | 'comment_mention'
   | 'daily_agenda'
   | 'workspace_invite'
+  | 'schedule_requested'
+  | 'schedule_accepted'
+  | 'schedule_declined'
+  | 'schedule_countered'
+  | 'schedule_withdrawn'
   | 'system'
 
 export type Profile = {
@@ -230,6 +235,40 @@ export type Notification = {
   readAt: ISODateString | null
   createdAt: ISODateString
   metadata: Record<string, unknown>
+}
+
+export type ScheduleRequestStatus =
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'countered'
+  | 'withdrawn'
+  | 'superseded'
+
+export type ScheduleRequestAction =
+  | 'accept'
+  | 'decline'
+  | 'counter'
+  | 'accept_counter'
+  | 'decline_counter'
+  | 'withdraw'
+
+export type ScheduleRequest = {
+  id: string
+  workspaceId: string
+  eventId: string
+  conflictEventId: string
+  requesterId: string
+  recipientId: string
+  status: ScheduleRequestStatus
+  proposedStartsAt: ISODateString | null
+  proposedEndsAt: ISODateString | null
+  message: string | null
+  createdAt: ISODateString
+  respondedAt: ISODateString | null
+  updatedAt: ISODateString
+  requester?: Profile
+  recipient?: Profile
 }
 
 export type EventInput = {

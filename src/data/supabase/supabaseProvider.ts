@@ -13,6 +13,8 @@ import type {
   EventInput,
   Notification,
   Profile,
+  ScheduleRequest,
+  ScheduleRequestAction,
   Team,
   Workspace,
   WorkspaceMembership,
@@ -36,6 +38,7 @@ import {
   mapEventRow,
   mapNotificationRow,
   mapProfileRow,
+  mapScheduleRequestRow,
   mapTeamRow,
   mapWorkspaceAuditEntryRow,
   mapWorkspaceMemberRow,
@@ -49,6 +52,7 @@ import {
   type EventRow,
   type NotificationRow,
   type ProfileRow,
+  type ScheduleRequestRow,
   type TeamRow,
   type WorkspaceAuditEntryRow,
   type WorkspaceMemberRow,
@@ -338,6 +342,48 @@ export function createSupabaseProvider(): DataProvider {
           participants: participants.get(row.id) ?? [],
         }),
       )
+    },
+
+    async listScheduleRequests(workspaceId: string): Promise<ScheduleRequest[]> {
+      const { data, error } = await client()
+        .from('event_schedule_requests')
+        .select(
+          '*, requester:profiles!requester_id(id, full_name, avatar_url, timezone, week_starts_on, clock_24h), recipient:profiles!recipient_id(id, full_name, avatar_url, timezone, week_starts_on, clock_24h)',
+        )
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false })
+
+      throwIf(error)
+      return ((data ?? []) as ScheduleRequestRow[]).map(mapScheduleRequestRow)
+    },
+
+    async respondScheduleRequest(input: {
+      requestId: string
+      action: ScheduleRequestAction
+      proposedStartsAt?: string | null
+      proposedEndsAt?: string | null
+      message?: string | null
+    }): Promise<ScheduleRequest> {
+      const { data, error } = await client().rpc('respond_schedule_request', {
+        p_request_id: input.requestId,
+        p_action: input.action,
+        p_proposed_starts_at: input.proposedStartsAt ?? null,
+        p_proposed_ends_at: input.proposedEndsAt ?? null,
+        p_message: input.message ?? null,
+      })
+
+      throwIf(error)
+
+      const result = data as {
+        ok?: boolean
+        request?: ScheduleRequestRow
+      } | null
+
+      if (!result?.ok || !result.request) {
+        throw new Error('The schedule request could not be updated')
+      }
+
+      return mapScheduleRequestRow(result.request)
     },
 
     async createEvent(input: EventInput): Promise<Event> {

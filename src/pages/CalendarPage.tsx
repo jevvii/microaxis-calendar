@@ -172,6 +172,18 @@ export function CalendarPage() {
   })
 
   const events = eventsQuery.data ?? []
+  const conflictEventsQuery = useEvents({
+    workspaceId: activeWorkspaceId,
+    rangeStart: rangeStartIso,
+    rangeEnd: rangeEndIso,
+  })
+  const conflictOccurrences = useMemo(
+    () =>
+      (conflictEventsQuery.data ?? []).flatMap((event) =>
+        expandRecurrence(event, rangeStartIso, rangeEndIso),
+      ),
+    [conflictEventsQuery.data, rangeEndIso, rangeStartIso],
+  )
   const loading =
     workspaceLoading ||
     (Boolean(activeWorkspaceId) &&
@@ -570,6 +582,7 @@ export function CalendarPage() {
         event={selectedEvent}
         calendars={calendars}
         writableCalendars={writableCalendars}
+        events={conflictOccurrences}
         categories={categories}
         members={members}
         currentUserId={user?.id ?? ''}

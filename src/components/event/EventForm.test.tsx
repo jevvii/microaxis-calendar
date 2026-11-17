@@ -1,7 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { Calendar, EventCategory, WorkspaceMembership } from '../../types/domain'
+import type {
+  Calendar,
+  EventCategory,
+  EventOccurrence,
+  WorkspaceMembership,
+} from '../../types/domain'
 import { EventForm } from './EventForm'
 
 const calendars: Calendar[] = [
@@ -177,6 +182,68 @@ describe('EventForm', () => {
     )
 
     expect(screen.getByText(/new event in/i)).toHaveTextContent('Mara’s calendar')
+  })
+
+  it('asks before creating over a conflict', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    const conflictEvent: EventOccurrence = {
+      id: 'evt-conflict',
+      workspaceId: '10000000-0000-4000-8000-000000000001',
+      calendarId: '30000000-0000-4000-8000-000000000002',
+      calendarKind: 'team',
+      createdBy: 'a0000000-0000-4000-8000-000000000002',
+      title: 'Team planning',
+      description: null,
+      location: null,
+      startsAt: '2026-11-03T02:30:00.000Z',
+      endsAt: '2026-11-03T03:30:00.000Z',
+      allDay: false,
+      timeZone: 'Asia/Manila',
+      categoryId: null,
+      priority: 'normal',
+      status: 'scheduled',
+      visibility: 'calendar',
+      exportToGoogle: true,
+      recurrenceRule: null,
+      recurrenceUntil: null,
+      recurrenceExceptions: [],
+      version: 1,
+      createdAt: '2026-11-01T00:00:00.000Z',
+      updatedAt: '2026-11-01T00:00:00.000Z',
+      deletedAt: null,
+      occurrenceStart: '2026-11-03T02:30:00.000Z',
+      occurrenceEnd: '2026-11-03T03:30:00.000Z',
+      isRecurring: false,
+      parentStart: '2026-11-03T02:30:00.000Z',
+    }
+
+    render(
+      <EventForm
+        mode="create"
+        calendars={calendars}
+        categories={categories}
+        members={members}
+        events={[conflictEvent]}
+        currentUserId="a0000000-0000-4000-8000-000000000001"
+        onSubmit={onSubmit}
+      />,
+    )
+
+    await user.type(screen.getByLabelText('Title'), 'Pricing review')
+    setInput('Starts', '2026-11-03')
+    setInput('Start time', '10:00')
+    setInput('Ends', '2026-11-03')
+    setInput('End time', '11:00')
+
+    await user.click(screen.getByRole('button', { name: 'Create and request' }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Send schedule requests?')
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Create and request' }))
+    expect(onSubmit).toHaveBeenCalled()
   })
 
   it('submits a valid event with the selected participant', async () => {

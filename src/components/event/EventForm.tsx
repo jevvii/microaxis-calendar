@@ -1,22 +1,27 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import type {
   Calendar,
   Event,
   EventCategory,
   EventInput,
+  EventOccurrence,
   EventPriority,
   EventStatus,
   EventVisibility,
   WorkspaceMembership,
 } from '../../types/domain'
 import { useEventForm } from '../../hooks/useEventForm'
+import { addDaysToDateKey, fromDateInput, fromDateTimeLocal } from '../../lib/date'
 import { addMinutesToDateTimeLocal } from '../../lib/dateTimePicker'
+import { findEventConflicts, suggestFreeSlots } from '../../lib/conflicts'
 import { Button } from '../ui/Button'
+import { Dialog } from '../ui/Dialog'
 import { Field } from '../ui/Field'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { Textarea } from '../ui/Textarea'
 import { DateTimeFields } from './DateTimeFields'
+import { EventConflicts } from './EventConflicts'
 import { ParticipantPicker } from './ParticipantPicker'
 import { RecurrenceFields } from './RecurrenceFields'
 import { VisibilityControl } from './VisibilityControl'
@@ -48,6 +53,8 @@ export function EventForm({
   defaultCalendarId,
   clock24h = false,
   weekStartsOn = 1,
+  events = [],
+  currentUserId = '',
 }: {
   mode: 'create' | 'edit'
   initial?: Event | null
@@ -61,6 +68,8 @@ export function EventForm({
   defaultCalendarId?: string
   clock24h?: boolean
   weekStartsOn?: 0 | 1
+  events?: EventOccurrence[]
+  currentUserId?: string
 }) {
   const { draft, setField, errors, validate } = useEventForm({
     calendars,
@@ -75,6 +84,63 @@ export function EventForm({
     ? availableTimeZones
     : [draft.timeZone, ...availableTimeZones]
   const selectedCalendar = calendars.find((calendar) => calendar.id === draft.calendarId)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pendingInput, setPendingInput] = useState<EventInput | null>(null)
+
+  const startsAt = draft.allDay
+    ? draft.startValue
+      ? fromDateInput(draft.startValue, draft.timeZone)
+      : ''
+    : draft.startValue
+      ? fromDateTimeLocal(draft.startValue, draft.timeZone)
+      : ''
+  const endsAt = draft.allDay
+    ? draft.endValue
+      ? fromDateInput(addDaysToDateKey(draft.endValue, 1), draft.timeZone)
+      : ''
+    : draft.endValue
+      ? fromDateTimeLocal(draft.endValue, draft.timeZone)
+      : ''
+
+  const conflicts = useMemo(
+    () =>
+      findEventConflicts({
+        events,
+        targetCalendarId: draft.calendarId,
+        startsAt,
+        endsAt,
+        excludeEventId: initial?.id,
+        userId: currentUserId,
+      }),
+    [currentUserId, draft.calendarId, endsAt, events, initial?.id, startsAt],
+  )
+
+  const suggestions = useMemo(() => {
+    if (draft.allDay || !draft.startValue || conflicts.length === 0) return []
+    const duration = Math.round(
+      (new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000,
+    )
+    return suggestFreeSlots({
+      events,
+      targetCalendarId: draft.calendarId,
+      startValue: draft.startValue,
+      durationMinutes: duration > 0 ? duration : 60,
+      timeZone: draft.timeZone,
+      excludeEventId: initial?.id,
+      userId: currentUserId,
+    })
+  }, [
+    conflicts.length,
+    currentUserId,
+    draft.allDay,
+    draft.calendarId,
+    draft.startValue,
+    draft.timeZone,
+    endsAt,
+    events,
+    initial?.id,
+    startsAt,
+  ])
 
   function handleAllDay(next: boolean) {
     setField('allDay', next)
@@ -84,14 +150,21 @@ export function EventForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const input = validate()
-    if (input) {
-      onSubmit(input)
+    if (!input) {
+      requestAnimationFrame(() => {
+        const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+        firstInvalid?.focus()
+      })
       return
     }
-    requestAnimationFrame(() => {
-      const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
-      firstInvalid?.focus()
-    })
+
+    if (conflicts.length > 0) {
+      setPendingInput(input)
+      setConfirmOpen(true)
+      return
+    }
+
+    onSubmit(input)
   }
 
   return (
@@ -185,6 +258,18 @@ export function EventForm({
         }
       />
 
+      <EventConflicts
+        conflicts={conflicts}
+        calendars={calendars}
+        timeZone={draft.timeZone}
+        clock24h={clock24h}
+        suggestions={suggestions}
+        onChooseSuggestion={(suggestion) => {
+          setField('startValue', suggestion.startValue)
+          setField('endValue', suggestion.endValue)
+        }}
+      />
+
       <Field label="Time zone" htmlFor="event-timezone">
         <Select
           id="event-timezone"
@@ -270,9 +355,46 @@ export function EventForm({
           </Button>
         ) : null}
         <Button type="submit" variant="primary" loading={submitting}>
-          {mode === 'create' ? 'Create event' : 'Save changes'}
+          {mode === 'create'
+            ? conflicts.length > 0
+              ? 'Create and request'
+              : 'Create event'
+            : conflicts.length > 0
+              ? 'Save and request'
+              : 'Save changes'}
         </Button>
       </div>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Send schedule requests?"
+        description="This event overlaps other calendars. The affected people will be asked to accept, decline, or propose another time."
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setConfirmOpen(false)
+                if (pendingInput) onSubmit(pendingInput)
+                setPendingInput(null)
+              }}
+            >
+              {mode === 'create' ? 'Create and request' : 'Save and request'}
+            </Button>
+          </div>
+        }
+      >
+        <EventConflicts
+          conflicts={conflicts}
+          calendars={calendars}
+          timeZone={draft.timeZone}
+          clock24h={clock24h}
+        />
+      </Dialog>
     </form>
   )
 }

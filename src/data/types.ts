@@ -17,6 +17,8 @@ import type {
   EventComment,
   EventAttachment,
   EventActivity,
+  ScheduleRequest,
+  ScheduleRequestAction,
 } from '../types/domain'
 
 export type EventRange = {
@@ -67,6 +69,14 @@ export type DataProvider = {
   listCalendars: (workspaceId: string) => Promise<Calendar[]>
   listCategories: (workspaceId: string) => Promise<EventCategory[]>
   listEvents: (range: EventRange) => Promise<Event[]>
+  listScheduleRequests: (workspaceId: string) => Promise<ScheduleRequest[]>
+  respondScheduleRequest: (input: {
+    requestId: string
+    action: ScheduleRequestAction
+    proposedStartsAt?: string | null
+    proposedEndsAt?: string | null
+    message?: string | null
+  }) => Promise<ScheduleRequest>
   createEvent: (input: EventInput) => Promise<Event>
   updateEvent: (
     eventId: string,

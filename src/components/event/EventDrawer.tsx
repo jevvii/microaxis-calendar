@@ -14,6 +14,7 @@ import type {
   Event,
   EventCategory,
   EventInput,
+  EventOccurrence,
   EventStatus,
   RsvpStatus,
   WorkspaceMembership,
@@ -28,6 +29,7 @@ import { EventCollaboration } from './EventCollaboration'
 import { EventForm } from './EventForm'
 import { EventStatusControl } from './EventStatusControl'
 import { RsvpControl } from './RsvpControl'
+import { ScheduleRequestPanel } from './ScheduleRequestPanel'
 
 function recurrenceLabel(rule: string | null) {
   if (!rule) return 'Does not repeat'
@@ -44,6 +46,7 @@ export function EventDrawer({
   event,
   calendars,
   writableCalendars = calendars,
+  events = [],
   categories,
   members,
   currentUserId,
@@ -72,6 +75,7 @@ export function EventDrawer({
   event: Event | null
   calendars: Calendar[]
   writableCalendars?: Calendar[]
+  events?: EventOccurrence[]
   categories: EventCategory[]
   members: WorkspaceMembership[]
   currentUserId: string
@@ -216,6 +220,8 @@ export function EventDrawer({
                 defaultCalendarId={defaultCalendarId}
                 clock24h={clock24h}
                 weekStartsOn={weekStartsOn}
+                events={events}
+                currentUserId={currentUserId}
               />
             ) : event ? (
               <div className="grid gap-6">
@@ -342,6 +348,16 @@ export function EventDrawer({
                   canManage={canEdit}
                   members={members}
                   online={online}
+                />
+
+                <ScheduleRequestPanel
+                  event={event}
+                  events={events}
+                  currentUserId={currentUserId}
+                  timeZone={viewerTimeZone ?? event.timeZone}
+                  clock24h={clock24h}
+                  weekStartsOn={weekStartsOn}
+                  onEdit={onEdit}
                 />
               </div>
             ) : null}

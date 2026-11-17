@@ -48,6 +48,11 @@ export function useRealtimeWorkspace(
       void queryClient.invalidateQueries({ queryKey: ['categories'] })
     }
 
+    function invalidateScheduleRequests() {
+      void queryClient.invalidateQueries({ queryKey: ['schedule-requests'] })
+      void queryClient.invalidateQueries({ queryKey: ['events'] })
+    }
+
     const channel = client
       .channel(`workspace:${workspaceId}`)
       .on(
@@ -82,6 +87,16 @@ export function useRealtimeWorkspace(
       )
       .on(
         'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_schedule_requests',
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        invalidateScheduleRequests,
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'teams', filter: `workspace_id=eq.${workspaceId}` },
         invalidateStructure,
       )
@@ -112,6 +127,7 @@ export function useRealtimeWorkspace(
           invalidateEventData()
           invalidateNotifications()
           invalidateCategories()
+          invalidateScheduleRequests()
           onStructureChange?.()
           void queryClient.invalidateQueries({ queryKey: ['audit', workspaceId] })
         } else if (nextStatus === 'CHANNEL_ERROR' || nextStatus === 'TIMED_OUT') {

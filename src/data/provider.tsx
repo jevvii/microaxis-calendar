@@ -22,6 +22,8 @@ function createUnconfiguredProvider(): DataProvider {
     listCalendars: notConfigured,
     listCategories: notConfigured,
     listEvents: notConfigured,
+    listScheduleRequests: notConfigured,
+    respondScheduleRequest: notConfigured,
     createEvent: notConfigured,
     updateEvent: notConfigured,
     deleteEvent: notConfigured,

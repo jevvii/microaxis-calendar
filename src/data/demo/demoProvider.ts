@@ -9,6 +9,8 @@ import type {
   Notification,
   NotificationPreferences,
   RsvpStatus,
+  ScheduleRequest,
+  ScheduleRequestAction,
   Team,
   CalendarShare,
   WorkspaceAuditEntry,
@@ -52,6 +54,7 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
           comments: parsed.comments ?? [],
           attachments: parsed.attachments ?? [],
           activity: parsed.activity ?? [],
+          scheduleRequests: parsed.scheduleRequests ?? [],
           events: (parsed.events ?? []).map((event) => ({
             ...event,
             exportToGoogle: event.exportToGoogle ?? true,
@@ -145,6 +148,106 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
 
   function attachCalendar(calendar: Calendar): Calendar {
     return clone(calendar)
+  }
+
+  function scheduleRequestWithProfiles(request: ScheduleRequest): ScheduleRequest {
+    return clone({
+      ...request,
+      requester: state.profiles.find((profile) => profile.id === request.requesterId),
+      recipient: state.profiles.find((profile) => profile.id === request.recipientId),
+    })
+  }
+
+  function scheduleRequestRecipientIds(event: Event, requesterId: string) {
+    const ids = new Set<string>([event.createdBy])
+    for (const participant of event.participants ?? []) ids.add(participant.userId)
+    ids.delete(requesterId)
+    return [...ids].filter((id) => isWorkspaceMember(event.workspaceId, id))
+  }
+
+  function syncDemoScheduleRequests(eventId: string) {
+    const event = state.events.find((item) => item.id === eventId)
+    if (!event) return
+
+    const now = new Date().toISOString()
+    let requests = state.scheduleRequests.map((request) =>
+      request.eventId === eventId &&
+      (request.status === 'pending' || request.status === 'countered')
+        ? { ...request, status: 'superseded' as const, updatedAt: now }
+        : request,
+    )
+
+    if (event.deletedAt || event.status === 'cancelled') {
+      saveState({ ...state, scheduleRequests: requests })
+      return
+    }
+
+    const eventStart = new Date(event.startsAt).getTime()
+    const eventEnd = new Date(event.endsAt).getTime()
+    const conflicts = state.events.filter(
+      (other) =>
+        other.id !== eventId &&
+        other.workspaceId === event.workspaceId &&
+        other.calendarId !== event.calendarId &&
+        !other.deletedAt &&
+        other.status !== 'cancelled' &&
+        new Date(other.startsAt).getTime() < eventEnd &&
+        new Date(other.endsAt).getTime() > eventStart,
+    )
+
+    let hasHold = false
+
+    for (const conflict of conflicts) {
+      for (const recipientId of scheduleRequestRecipientIds(conflict, event.createdBy)) {
+        const alreadyPending = requests.some(
+          (request) =>
+            request.eventId === eventId &&
+            request.conflictEventId === conflict.id &&
+            request.recipientId === recipientId &&
+            request.status === 'pending',
+        )
+        if (alreadyPending) {
+          hasHold = true
+          continue
+        }
+
+        requests = [
+          ...requests,
+          {
+            id: crypto.randomUUID(),
+            workspaceId: event.workspaceId,
+            eventId,
+            conflictEventId: conflict.id,
+            requesterId: event.createdBy,
+            recipientId,
+            status: 'pending',
+            proposedStartsAt: null,
+            proposedEndsAt: null,
+            message: null,
+            createdAt: now,
+            respondedAt: null,
+            updatedAt: now,
+          },
+        ]
+        hasHold = true
+      }
+    }
+
+    const nextStatus = hasHold
+      ? 'tentative'
+      : event.status === 'tentative'
+        ? 'scheduled'
+        : event.status
+
+    saveState({
+      ...state,
+      events: state.events.map((item) =>
+        item.id === eventId && nextStatus !== item.status
+          ? { ...item, status: nextStatus, version: item.version + 1, updatedAt: now }
+          : item,
+      ),
+      scheduleRequests: requests,
+    })
   }
 
   function attachEvent(event: Event): Event {
@@ -316,7 +419,8 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
       }
 
       saveState({ ...state, events: [...state.events, event] })
-      return attachEvent(event)
+      syncDemoScheduleRequests(eventId)
+      return attachEvent(state.events.find((item) => item.id === eventId) ?? event)
     },
 
     async updateEvent(
@@ -374,7 +478,11 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         ...state,
         events: state.events.map((event) => (event.id === eventId ? updated : event)),
       })
-      return { ok: true, event: attachEvent(updated) }
+      syncDemoScheduleRequests(eventId)
+      return {
+        ok: true,
+        event: attachEvent(state.events.find((event) => event.id === eventId) ?? updated),
+      }
     },
 
     async deleteEvent(eventId: string, expectedVersion: number): Promise<DeleteEventResult> {
@@ -389,7 +497,157 @@ export function createDemoProvider(storage: Storage = window.localStorage): Data
         ...state,
         events: state.events.map((event) => (event.id === eventId ? deleted : event)),
       })
+      syncDemoScheduleRequests(eventId)
       return { ok: true }
+    },
+
+    async listScheduleRequests(workspaceId: string): Promise<ScheduleRequest[]> {
+      return state.scheduleRequests
+        .filter(
+          (request) =>
+            request.workspaceId === workspaceId &&
+            (request.requesterId === state.currentUserId ||
+              request.recipientId === state.currentUserId),
+        )
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map(scheduleRequestWithProfiles)
+    },
+
+    async respondScheduleRequest(input: {
+      requestId: string
+      action: ScheduleRequestAction
+      proposedStartsAt?: string | null
+      proposedEndsAt?: string | null
+      message?: string | null
+    }): Promise<ScheduleRequest> {
+      const request = state.scheduleRequests.find((item) => item.id === input.requestId)
+      if (!request) throw new Error('Schedule request not found')
+
+      const actor = state.currentUserId
+      const action = input.action
+      const recipientAction =
+        action === 'accept' || action === 'decline' || action === 'counter'
+
+      if (recipientAction && request.recipientId !== actor) {
+        throw new Error('Only the recipient can answer this request')
+      }
+      if (
+        (action === 'accept_counter' || action === 'decline_counter') &&
+        request.requesterId !== actor
+      ) {
+        throw new Error('Only the requester can answer a counter-proposal')
+      }
+      if (action === 'withdraw' && request.requesterId !== actor) {
+        throw new Error('Only the requester can withdraw this request')
+      }
+
+      const now = new Date().toISOString()
+      let status = request.status
+      let events = state.events
+      let requests = state.scheduleRequests
+
+      if (action === 'accept') {
+        if (request.status !== 'pending') throw new Error('This request is no longer pending')
+        status = 'accepted'
+      } else if (action === 'decline') {
+        if (request.status !== 'pending') throw new Error('This request is no longer pending')
+        status = 'declined'
+        events = events.map((event) =>
+          event.id === request.eventId
+            ? { ...event, status: 'cancelled', version: event.version + 1, updatedAt: now }
+            : event,
+        )
+        requests = requests.map((item) =>
+          item.eventId === request.eventId &&
+          item.id !== request.id &&
+          (item.status === 'pending' || item.status === 'countered')
+            ? { ...item, status: 'superseded', updatedAt: now }
+            : item,
+        )
+      } else if (action === 'counter') {
+        if (request.status !== 'pending') throw new Error('This request is no longer pending')
+        if (
+          !input.proposedStartsAt ||
+          !input.proposedEndsAt ||
+          new Date(input.proposedEndsAt) <= new Date(input.proposedStartsAt)
+        ) {
+          throw new Error('Choose a valid proposed start and end')
+        }
+        status = 'countered'
+      } else if (action === 'accept_counter') {
+        if (request.status !== 'countered') throw new Error('No counter-proposal to accept')
+        status = 'accepted'
+        events = events.map((event) =>
+          event.id === request.eventId
+            ? {
+                ...event,
+                startsAt: request.proposedStartsAt ?? event.startsAt,
+                endsAt: request.proposedEndsAt ?? event.endsAt,
+                status: 'scheduled',
+                version: event.version + 1,
+                updatedAt: now,
+              }
+            : event,
+        )
+      } else if (action === 'decline_counter') {
+        if (request.status !== 'countered') throw new Error('No counter-proposal to decline')
+        status = 'declined'
+        events = events.map((event) =>
+          event.id === request.eventId
+            ? { ...event, status: 'tentative', version: event.version + 1, updatedAt: now }
+            : event,
+        )
+      } else if (action === 'withdraw') {
+        status = 'withdrawn'
+        events = events.map((event) =>
+          event.id === request.eventId
+            ? { ...event, status: 'cancelled', version: event.version + 1, updatedAt: now }
+            : event,
+        )
+        requests = requests.map((item) =>
+          item.eventId === request.eventId &&
+          item.id !== request.id &&
+          (item.status === 'pending' || item.status === 'countered')
+            ? { ...item, status: 'superseded', updatedAt: now }
+            : item,
+        )
+      }
+
+      requests = requests.map((item) =>
+        item.id === request.id
+          ? {
+              ...item,
+              status,
+              proposedStartsAt:
+                action === 'counter' ? input.proposedStartsAt ?? null : item.proposedStartsAt,
+              proposedEndsAt:
+                action === 'counter' ? input.proposedEndsAt ?? null : item.proposedEndsAt,
+              message: action === 'counter' ? input.message ?? null : item.message,
+              respondedAt: now,
+              updatedAt: now,
+            }
+          : item,
+      )
+
+      if (action === 'accept') {
+        const pending = requests.some(
+          (item) =>
+            item.eventId === request.eventId &&
+            (item.status === 'pending' || item.status === 'countered'),
+        )
+        if (!pending) {
+          events = events.map((event) =>
+            event.id === request.eventId
+              ? { ...event, status: 'scheduled', version: event.version + 1, updatedAt: now }
+              : event,
+          )
+        }
+      }
+
+      saveState({ ...state, events, scheduleRequests: requests })
+      return scheduleRequestWithProfiles(
+        state.scheduleRequests.find((item) => item.id === request.id)!,
+      )
     },
 
     async listNotifications(workspaceId: string): Promise<Notification[]> {

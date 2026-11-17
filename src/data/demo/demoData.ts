@@ -9,6 +9,7 @@ import type {
   Notification,
   NotificationPreferences,
   Profile,
+  ScheduleRequest,
   Team,
   TeamMembership,
   Workspace,
@@ -705,6 +706,7 @@ export type DemoState = {
   calendars: Calendar[]
   categories: EventCategory[]
   events: Event[]
+  scheduleRequests: ScheduleRequest[]
   notifications: Notification[]
   comments: EventComment[]
   attachments: EventAttachment[]
@@ -724,6 +726,7 @@ export function createDemoSeed(): DemoState {
     calendars: structuredClone(demoCalendars),
     categories: structuredClone(demoCategories),
     events: structuredClone(demoEvents),
+    scheduleRequests: [],
     notifications: structuredClone(demoNotifications),
     comments: structuredClone(demoComments),
     attachments: structuredClone(demoAttachments),

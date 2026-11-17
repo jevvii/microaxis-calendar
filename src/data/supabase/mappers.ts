@@ -10,6 +10,8 @@ import type {
   EventParticipant,
   Notification,
   Profile,
+  ScheduleRequest,
+  ScheduleRequestStatus,
   Team,
   Workspace,
   WorkspaceMembership,
@@ -391,6 +393,47 @@ export function mapWorkspaceAuditEntryRow(row: WorkspaceAuditEntryRow): Workspac
     metadata: row.metadata ?? {},
     createdAt: row.created_at,
     actor: actor ? mapProfileRow(actor) : undefined,
+  }
+}
+
+export type ScheduleRequestRow = {
+  id: string
+  workspace_id: string
+  event_id: string
+  conflict_event_id: string
+  requester_id: string
+  recipient_id: string
+  status: ScheduleRequestStatus
+  proposed_starts_at: string | null
+  proposed_ends_at: string | null
+  message: string | null
+  created_at: string
+  responded_at: string | null
+  updated_at: string
+  requester?: ProfileRow | ProfileRow[] | null
+  recipient?: ProfileRow | ProfileRow[] | null
+}
+
+export function mapScheduleRequestRow(row: ScheduleRequestRow): ScheduleRequest {
+  const requester = Array.isArray(row.requester) ? row.requester[0] : row.requester
+  const recipient = Array.isArray(row.recipient) ? row.recipient[0] : row.recipient
+
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    eventId: row.event_id,
+    conflictEventId: row.conflict_event_id,
+    requesterId: row.requester_id,
+    recipientId: row.recipient_id,
+    status: row.status,
+    proposedStartsAt: row.proposed_starts_at,
+    proposedEndsAt: row.proposed_ends_at,
+    message: row.message,
+    createdAt: row.created_at,
+    respondedAt: row.responded_at,
+    updatedAt: row.updated_at,
+    requester: requester ? mapProfileRow(requester) : undefined,
+    recipient: recipient ? mapProfileRow(recipient) : undefined,
   }
 }
 
