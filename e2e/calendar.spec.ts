@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { expect, test } from '@playwright/test'
 
 test('opens the shared calendar and an event drawer', async ({ page }) => {
-  await page.goto('/app/calendar')
+  await page.goto('/app/calendar?date=2026-11-03')
   await expect(page.getByRole('heading', { name: 'This week' })).toBeVisible()
   await expect(page.getByText('OceanJet release review').first()).toBeVisible()
 

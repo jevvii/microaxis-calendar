@@ -184,6 +184,14 @@ export function CalendarPage() {
       ),
     [conflictEventsQuery.data, rangeEndIso, rangeStartIso],
   )
+
+  useEffect(() => {
+    if (!selectedEvent) return
+    const latest = events.find((event) => event.id === selectedEvent.id)
+    if (latest && latest.version !== selectedEvent.version) {
+      setSelectedEvent(latest)
+    }
+  }, [events, selectedEvent])
   const loading =
     workspaceLoading ||
     (Boolean(activeWorkspaceId) &&
