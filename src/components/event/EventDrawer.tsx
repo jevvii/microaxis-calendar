@@ -86,6 +86,7 @@ export function EventDrawer({
 }) {
   const returnFocusRef = useRef<HTMLElement | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [showCurrentVersion, setShowCurrentVersion] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -134,13 +135,47 @@ export function EventDrawer({
                       Your draft is still here. Review the newer version before replacing it.
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Button variant="secondary" size="sm" onClick={onReviewConflict}>
-                        Review current version
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        aria-expanded={showCurrentVersion}
+                        aria-controls="conflict-current-version"
+                        onClick={() => setShowCurrentVersion((current) => !current)}
+                      >
+                        {showCurrentVersion ? 'Hide current version' : 'Review current version'}
                       </Button>
                       <Button variant="ghost" size="sm" onClick={onKeepDraft}>
                         Keep my draft
                       </Button>
                     </div>
+                    {showCurrentVersion ? (
+                      <div
+                        id="conflict-current-version"
+                        className="mt-3 rounded-control border border-line bg-surface p-3"
+                      >
+                        <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3">
+                          Current version
+                        </p>
+                        <p className="mt-1 text-sm font-medium text-ink">{conflict.title}</p>
+                        <p className="mt-1 text-xs text-ink-3">
+                          {conflict.allDay
+                            ? 'All day'
+                            : eventTimeLabel(conflict, conflict.timeZone, false)}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setShowCurrentVersion(false)}
+                          >
+                            Hide
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={onReviewConflict}>
+                            Use current version
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>

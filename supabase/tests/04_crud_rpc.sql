@@ -8,6 +8,8 @@ declare
   v_team uuid;
   v_event jsonb;
   v_version integer;
+  v_responded_before timestamptz;
+  v_responded_after timestamptz;
   v_comment public.event_comments%rowtype;
   v_attachment public.event_attachments%rowtype;
   v_path text;
@@ -51,6 +53,15 @@ begin
 
   select version into v_version from public.events where id = '40000000-0000-4000-8000-000000000001';
 
+  select responded_at into v_responded_before
+  from public.event_participants
+  where event_id = '40000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000002';
+
+  if v_responded_before is null then
+    raise exception 'Expected a seeded RSVP response time for the update test';
+  end if;
+
   select public.update_event(
     '40000000-0000-4000-8000-000000000001',
     v_version,
@@ -64,12 +75,25 @@ begin
       'priority', 'high',
       'status', 'scheduled',
       'visibility', 'calendar',
-      'participant_ids', jsonb_build_array('a0000000-0000-4000-8000-000000000001')
+      'participant_ids', jsonb_build_array(
+        'a0000000-0000-4000-8000-000000000001',
+        'a0000000-0000-4000-8000-000000000002'
+      )
     )
   ) into v_event;
 
   if coalesce((v_event ->> 'ok')::boolean, false) is not true then
     raise exception 'update_event failed: %', v_event;
+  end if;
+
+  select responded_at into v_responded_after
+  from public.event_participants
+  where event_id = '40000000-0000-4000-8000-000000000001'
+    and user_id = 'a0000000-0000-4000-8000-000000000002';
+
+  if v_responded_after is distinct from v_responded_before then
+    raise exception 'update_event must preserve an unchanged participant responded_at (% vs %)',
+      v_responded_before, v_responded_after;
   end if;
 
   v_comment := public.create_comment('40000000-0000-4000-8000-000000000001', 'CRUD comment');

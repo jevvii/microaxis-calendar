@@ -255,18 +255,81 @@ select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002
 do $$
 declare
   v_version integer;
+  v_result jsonb;
+  v_count integer;
 begin
-  update public.events
-  set title = 'Pricing model review — editor pass'
-  where id = '40000000-0000-4000-8000-000000000015'
-  returning version into v_version;
+  select version into v_version
+  from public.events
+  where id = '40000000-0000-4000-8000-000000000015';
 
-  if v_version is null then
-    raise exception 'An editor should update the shared event';
+  select public.update_event(
+    '40000000-0000-4000-8000-000000000015',
+    v_version,
+    jsonb_build_object(
+      'title', 'Pricing model review — editor pass',
+      'starts_at', '2026-11-06T05:00:00.000Z',
+      'ends_at', '2026-11-06T06:00:00.000Z',
+      'all_day', false,
+      'time_zone', 'Asia/Manila',
+      'priority', 'normal',
+      'status', 'scheduled',
+      'visibility', 'calendar'
+    )
+  ) into v_result;
+
+  if coalesce((v_result ->> 'ok')::boolean, false) is not true then
+    raise exception 'An editor should update the shared event through update_event: %', v_result;
   end if;
-  if v_version <> 2 then
-    raise exception 'Expected version 2 after editor update, found %', v_version;
+
+  if (v_result -> 'event' ->> 'version')::integer <> v_version + 1 then
+    raise exception 'Expected version % after editor update, found %',
+      v_version + 1, v_result -> 'event' ->> 'version';
   end if;
+
+  update public.events
+  set title = 'Direct update should not apply'
+  where id = '40000000-0000-4000-8000-000000000015';
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then
+    raise exception 'Direct event updates must be denied after the write lockdown';
+  end if;
+
+  delete from public.events
+  where id = '40000000-0000-4000-8000-000000000015';
+  get diagnostics v_count = row_count;
+  if v_count <> 0 then
+    raise exception 'Direct event deletes must be denied after the write lockdown';
+  end if;
+
+  begin
+    insert into public.events (
+      id, workspace_id, calendar_id, created_by, title, starts_at, ends_at,
+      all_day, time_zone, priority, status, visibility
+    )
+    values (
+      '40000000-0000-4000-8000-000000000099',
+      '10000000-0000-4000-8000-000000000001',
+      '30000000-0000-4000-8000-000000000001',
+      'a0000000-0000-4000-8000-000000000002',
+      'Direct insert should not apply',
+      '2026-11-07T05:00:00.000Z',
+      '2026-11-07T06:00:00.000Z',
+      false,
+      'Asia/Manila',
+      'normal',
+      'scheduled',
+      'calendar'
+    );
+    raise exception 'Direct event inserts must be denied after the write lockdown';
+  exception
+    when insufficient_privilege then null;
+    when others then
+      if sqlerrm like '%row-level security%' or sqlerrm like '%permission denied%' then
+        null;
+      else
+        raise;
+      end if;
+  end;
 end;
 $$;
 

@@ -204,6 +204,11 @@ describe('canEditEvent', () => {
     expect(canEditEvent(baseEvent, null, 'admin', null, 'u-admin')).toBe(false)
   })
 
+  it('does not let a workspace admin edit a shared-calendar event without a share', () => {
+    const sharedEvent = { ...baseEvent, calendarKind: 'shared' as const, createdBy: 'u-creator' }
+    expect(canEditEvent(sharedEvent, null, 'admin', null, 'u-admin')).toBe(false)
+  })
+
   it('lets a team lead edit a shared event', () => {
     const teamEvent = { ...baseEvent, calendarKind: 'team' as const, createdBy: 'u-member' }
     expect(canEditEvent(teamEvent, 'manager', null, 'lead', 'u-lead')).toBe(true)

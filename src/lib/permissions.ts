@@ -98,25 +98,14 @@ export function hasCalendarAccess(
 export function canEditEvent(
   event: Event,
   role: CalendarRole | null,
-  workspaceRole: WorkspaceRole | null,
-  teamRole: TeamRole | null,
+  _workspaceRole: WorkspaceRole | null,
+  _teamRole: TeamRole | null,
   userId: string,
 ) {
   if (event.deletedAt) return false
   if (event.visibility === 'private' && event.createdBy !== userId) return false
   if (event.createdBy === userId) return true
   if (role === 'manager' || role === 'editor') return true
-
-  if (
-    event.calendarKind !== 'personal' &&
-    (workspaceRole === 'owner' || workspaceRole === 'admin')
-  ) {
-    return true
-  }
-
-  if (event.calendarKind === 'team' && teamRole === 'lead') {
-    return true
-  }
 
   return false
 }

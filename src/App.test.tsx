@@ -9,6 +9,7 @@ describe('app routes', () => {
   })
 
   it('renders the calendar workspace in demo mode without Supabase credentials', async () => {
+    window.history.pushState({}, '', '/app/calendar?date=2026-11-03')
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: /this week/i })).toBeInTheDocument()
