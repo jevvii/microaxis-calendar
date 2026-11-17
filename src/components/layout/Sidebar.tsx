@@ -4,6 +4,7 @@ import {
   CaretUpDown,
   GearSix,
   Plus,
+  SignOut,
   UsersThree,
 } from '@phosphor-icons/react'
 import { NavLink } from 'react-router-dom'
@@ -38,6 +39,7 @@ type SidebarProps = {
   onNewEvent?: () => void
   onOpenWorkspaceMenu?: () => void
   onOpenSettings?: () => void
+  onSignOut?: () => void
 }
 
 export function Sidebar({
@@ -52,6 +54,7 @@ export function Sidebar({
   onNewEvent,
   onOpenWorkspaceMenu,
   onOpenSettings,
+  onSignOut,
 }: SidebarProps) {
   return (
     <div className="flex h-full flex-col bg-surface-2">
@@ -202,6 +205,9 @@ export function Sidebar({
         </div>
         <IconButton label="Account settings" size="sm" onClick={onOpenSettings}>
           <GearSix size={15} aria-hidden />
+        </IconButton>
+        <IconButton label="Sign out" size="sm" onClick={onSignOut}>
+          <SignOut size={15} aria-hidden />
         </IconButton>
       </div>
     </div>

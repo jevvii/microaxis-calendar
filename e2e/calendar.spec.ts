@@ -50,6 +50,12 @@ test('has no serious or critical WCAG violations on the calendar', async ({ page
   expect(serious).toEqual([])
 })
 
+test('signs out from settings', async ({ page }) => {
+  await page.goto('/app/settings')
+  await page.locator('main').getByRole('button', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/auth$/)
+})
+
 test('opens account settings from the bottom-left gear', async ({ page }) => {
   await page.goto('/app/calendar')
   await page.getByRole('button', { name: 'Account settings' }).click()

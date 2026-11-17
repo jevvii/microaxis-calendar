@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun, Desktop, Warning } from '@phosphor-icons/react'
+import { Bell, Moon, Sun, Desktop, SignOut, Warning } from '@phosphor-icons/react'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../providers/AuthProvider'
@@ -27,6 +27,7 @@ export function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
@@ -46,6 +47,27 @@ export function SettingsPage() {
             </p>
           </div>
           {isDemo ? <Badge tone="warning">Demo mode</Badge> : null}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            leadingIcon={<SignOut size={14} aria-hidden />}
+            loading={signingOut}
+            onClick={async () => {
+              setSigningOut(true)
+              try {
+                await signOut()
+              } finally {
+                navigate('/auth')
+              }
+            }}
+          >
+            Sign out
+          </Button>
+          <p className="text-xs text-ink-3">
+            This clears the local cache and returns you to sign in.
+          </p>
         </div>
       </section>
 

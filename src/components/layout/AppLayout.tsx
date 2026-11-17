@@ -21,7 +21,7 @@ import { ThemeToggle } from './ThemeToggle'
 import { Topbar } from './Topbar'
 
 export function AppLayout() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const {
     workspaces,
     activeWorkspace,
@@ -80,6 +80,14 @@ export function AppLayout() {
           : 'calendar'
         : 'more'
 
+  async function handleSignOut() {
+    try {
+      await signOut()
+    } finally {
+      navigate('/auth')
+    }
+  }
+
   function selectWorkspace(workspaceId: string) {
     setStudioSheetOpen(false)
     setActiveWorkspaceId(workspaceId)
@@ -132,6 +140,7 @@ export function AppLayout() {
           onNewEvent={() => navigate('/app/calendar?new=1')}
           onOpenWorkspaceMenu={() => setWorkspaceMenuOpen(true)}
           onOpenSettings={() => navigate('/app/settings')}
+          onSignOut={handleSignOut}
         />
       }
       topbar={
