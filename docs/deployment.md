@@ -149,6 +149,14 @@ The frontend is a static site, so it does not cold-start or consume Render web-s
 10. Export workspace JSON and one calendar ICS.
 11. Run `npx playwright test` against the deployed URL by changing `baseURL` if desired.
 
+For a quick automated check of the deployed site:
+
+```bash
+STAGING_URL=https://<staging-site> node scripts/staging-smoke.mjs
+```
+
+It verifies that the page loads, `/app/calendar` redirects to sign-in when there is no session, and reports console, page, and failed-request errors.
+
 ## 9. Operational checks
 
 - Supabase Dashboard → Database → Cron jobs: confirm three jobs are active.
