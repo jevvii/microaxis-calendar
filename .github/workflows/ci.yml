@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/microaxis-calendar]
+    branches: [main, staging, feat/microaxis-calendar]
   pull_request:
 
 jobs:
