@@ -86,6 +86,7 @@ export function createInitialDraft(
   categories: EventCategory[],
   initial?: Event | null,
   defaultTimeZone = 'Asia/Manila',
+  defaultCalendarId?: string,
 ): EventFormDraft {
   const timeZone = initial?.timeZone ?? defaultTimeZone
   const startValue = initial
@@ -102,8 +103,13 @@ export function createInitialDraft(
         timeZone,
       )
 
+  const preferredCalendarId =
+    defaultCalendarId && calendars.some((calendar) => calendar.id === defaultCalendarId)
+      ? defaultCalendarId
+      : calendars[0]?.id
+
   return {
-    calendarId: initial?.calendarId ?? calendars[0]?.id ?? '',
+    calendarId: initial?.calendarId ?? preferredCalendarId ?? '',
     title: initial?.title ?? '',
     description: initial?.description ?? '',
     location: initial?.location ?? '',
@@ -126,14 +132,16 @@ export function useEventForm({
   categories,
   initial,
   defaultTimeZone,
+  defaultCalendarId,
 }: {
   calendars: Calendar[]
   categories: EventCategory[]
   initial?: Event | null
   defaultTimeZone?: string
+  defaultCalendarId?: string
 }) {
   const [draft, setDraft] = useState<EventFormDraft>(() =>
-    createInitialDraft(calendars, categories, initial, defaultTimeZone),
+    createInitialDraft(calendars, categories, initial, defaultTimeZone, defaultCalendarId),
   )
   const [errors, setErrors] = useState<EventFormErrors>({})
 

@@ -44,6 +44,7 @@ export function EventForm({
   onCancel,
   submitting = false,
   defaultTimeZone,
+  defaultCalendarId,
 }: {
   mode: 'create' | 'edit'
   initial?: Event | null
@@ -54,18 +55,21 @@ export function EventForm({
   onCancel?: () => void
   submitting?: boolean
   defaultTimeZone?: string
+  defaultCalendarId?: string
 }) {
   const { draft, setField, errors, validate } = useEventForm({
     calendars,
     categories,
     initial,
     defaultTimeZone,
+    defaultCalendarId,
   })
   const [allDayNotice, setAllDayNotice] = useState(false)
   const availableTimeZones = supportedTimeZones()
   const timeZones = availableTimeZones.includes(draft.timeZone)
     ? availableTimeZones
     : [draft.timeZone, ...availableTimeZones]
+  const selectedCalendar = calendars.find((calendar) => calendar.id === draft.calendarId)
 
   function handleAllDay(next: boolean) {
     setField('allDay', next)
@@ -111,6 +115,11 @@ export function EventForm({
             </option>
           ))}
         </Select>
+        {mode === 'create' && selectedCalendar ? (
+          <p className="text-[11px] leading-5 text-ink-3">
+            New event in <span className="font-medium text-ink">{selectedCalendar.name}</span>.
+          </p>
+        ) : null}
       </Field>
 
       <Field label="Title" htmlFor="event-title" error={errors.title}>

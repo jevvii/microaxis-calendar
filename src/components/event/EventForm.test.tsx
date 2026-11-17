@@ -115,6 +115,20 @@ describe('EventForm', () => {
     expect(screen.getByLabelText('Ends')).toHaveAttribute('type', 'date')
   })
 
+  it('names the calendar the new event will use', () => {
+    render(
+      <EventForm
+        mode="create"
+        calendars={calendars}
+        categories={categories}
+        members={members}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/new event in/i)).toHaveTextContent('Mara’s calendar')
+  })
+
   it('submits a valid event with the selected participant', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn()

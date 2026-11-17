@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useCalendars } from '../../hooks/useCalendars'
+import { rememberCalendar } from '../../lib/activeCalendar'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useRealtimeWorkspace } from '../../hooks/useRealtime'
 import { useAuth } from '../../providers/AuthProvider'
@@ -86,6 +87,7 @@ export function AppLayout() {
   }
 
   function selectCalendar(calendarId: string) {
+    rememberCalendar(activeWorkspaceId, calendarId)
     setStudioSheetOpen(false)
     if (!isCalendarRoute) {
       navigate(`/app/calendar?calendar=${calendarId}`)
@@ -126,15 +128,7 @@ export function AppLayout() {
           teams={sidebarTeams}
           activeCalendarId={activeCalendarId}
           unreadCount={unreadCount}
-          onSelectCalendar={(calendarId) => {
-            if (!location.pathname.includes('/calendar')) {
-              navigate(`/app/calendar?calendar=${calendarId}`)
-              return
-            }
-            updateParams({
-              calendar: activeCalendarId === calendarId ? null : calendarId,
-            })
-          }}
+          onSelectCalendar={selectCalendar}
           onNewEvent={() => navigate('/app/calendar?new=1')}
           onOpenWorkspaceMenu={() => setWorkspaceMenuOpen(true)}
           onOpenSettings={() => navigate('/app/settings')}

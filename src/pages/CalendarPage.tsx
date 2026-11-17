@@ -34,7 +34,8 @@ import { useAuth } from '../providers/AuthProvider'
 import { useToast } from '../providers/ToastProvider'
 import { useWorkspace } from '../providers/WorkspaceProvider'
 import type { Event, EventInput, EventOccurrence, EventStatus, RsvpStatus } from '../types/domain'
-import { calendarRole, canEditEvent } from '../lib/permissions'
+import { readRememberedCalendar, resolveActiveCalendar } from '../lib/activeCalendar'
+import { calendarRole, canCreateEvent, canEditEvent } from '../lib/permissions'
 
 const FILTERS_KEY = 'microaxis-calendar-filters'
 
@@ -111,6 +112,10 @@ export function CalendarPage() {
       ? 'agenda'
       : 'week'
   const calendarFilter = searchParams.get('calendar')
+  const rememberedCalendarId = useMemo(
+    () => readRememberedCalendar(activeWorkspaceId),
+    [activeWorkspaceId, calendarFilter],
+  )
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn })
   const weekEnd = addDays(weekStart, 6)
@@ -125,6 +130,32 @@ export function CalendarPage() {
   const categoriesQuery = useCategories(activeWorkspaceId)
   const calendars = calendarsQuery.data ?? []
   const categories = categoriesQuery.data ?? []
+
+  const writableCalendars = useMemo(() => {
+    if (!user) return []
+    return calendars.filter((calendar) => {
+      const team = calendar.teamId
+        ? teams.find((item) => item.id === calendar.teamId) ?? null
+        : null
+      const teamRole = team ? (team.leadIds?.includes(user.id) ? 'lead' : 'member') : null
+      const role = calendarRole(calendar, user.id, {
+        workspaceRole: membership?.role ?? null,
+        teamIds: team ? [team.id] : [],
+        teamRole,
+      })
+      return canCreateEvent(role)
+    })
+  }, [calendars, membership?.role, teams, user])
+
+  const activeCalendar = user
+    ? resolveActiveCalendar({
+        calendars,
+        writableCalendars,
+        urlCalendarId: calendarFilter,
+        rememberedCalendarId,
+        userId: user.id,
+      })
+    : null
 
   const selectedCalendarIds = useMemo(() => {
     const ids = new Set(filters.calendarIds)
@@ -541,11 +572,13 @@ export function CalendarPage() {
         mode={drawerMode}
         event={selectedEvent}
         calendars={calendars}
+        writableCalendars={writableCalendars}
         categories={categories}
         members={members}
         currentUserId={user?.id ?? ''}
         clock24h={clock24h}
         viewerTimeZone={timeZone}
+        defaultCalendarId={activeCalendar?.id}
         canEdit={canEditSelected && online}
         canModerate={membership?.role === 'owner' || membership?.role === 'admin'}
         online={online}

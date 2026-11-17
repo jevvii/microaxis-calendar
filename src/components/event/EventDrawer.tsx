@@ -43,11 +43,13 @@ export function EventDrawer({
   mode,
   event,
   calendars,
+  writableCalendars = calendars,
   categories,
   members,
   currentUserId,
   clock24h = false,
   viewerTimeZone,
+  defaultCalendarId,
   canEdit,
   canModerate = false,
   online = true,
@@ -68,11 +70,13 @@ export function EventDrawer({
   mode: 'view' | 'create' | 'edit'
   event: Event | null
   calendars: Calendar[]
+  writableCalendars?: Calendar[]
   categories: EventCategory[]
   members: WorkspaceMembership[]
   currentUserId: string
   clock24h?: boolean
   viewerTimeZone?: string
+  defaultCalendarId?: string
   canEdit: boolean
   canModerate?: boolean
   online?: boolean
@@ -101,6 +105,13 @@ export function EventDrawer({
   const editing = mode === 'create' || mode === 'edit'
   const participant = event?.participants?.find((item) => item.userId === currentUserId)
   const creatorName = event?.creator?.fullName ?? 'Unknown creator'
+  const eventCalendar = event
+    ? calendars.find((calendar) => calendar.id === event.calendarId) ?? null
+    : null
+  const formCalendars =
+    eventCalendar && !writableCalendars.some((calendar) => calendar.id === eventCalendar.id)
+      ? [eventCalendar, ...writableCalendars]
+      : writableCalendars
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -193,13 +204,14 @@ export function EventDrawer({
               <EventForm
                 mode={mode === 'create' ? 'create' : 'edit'}
                 initial={event}
-                calendars={calendars}
+                calendars={formCalendars}
                 categories={categories}
                 members={members}
                 onSubmit={onSave}
                 onCancel={mode === 'edit' ? onCancelEdit : undefined}
                 submitting={saving}
                 defaultTimeZone={viewerTimeZone}
+                defaultCalendarId={defaultCalendarId}
               />
             ) : event ? (
               <div className="grid gap-6">
@@ -225,6 +237,14 @@ export function EventDrawer({
                 </div>
 
                 <div className="grid gap-2.5 border-y border-line py-4 text-sm text-ink-2">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className="size-2 shrink-0 rounded-full border border-black/10"
+                      style={{ backgroundColor: eventCalendar?.color ?? '#67675E' }}
+                      aria-hidden
+                    />
+                    <span>{eventCalendar?.name ?? 'Calendar'}</span>
+                  </div>
                   <div className="flex items-center gap-2.5">
                     <Clock size={15} className="text-ink-3" aria-hidden />
                     <span>{recurrenceLabel(event.recurrenceRule)}</span>

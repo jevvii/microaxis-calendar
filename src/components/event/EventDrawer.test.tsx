@@ -123,6 +123,32 @@ describe('EventDrawer time display', () => {
 
     expect(screen.getByText('20:30 – 21:30')).toBeInTheDocument()
   })
+
+  it('names the source calendar in event details', () => {
+    render(
+      <EventDrawer
+        open
+        onOpenChange={vi.fn()}
+        mode="view"
+        event={event}
+        calendars={[calendar]}
+        categories={[]}
+        members={members}
+        currentUserId="a0000000-0000-4000-8000-000000000001"
+        canEdit
+        onEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onRsvp={vi.fn()}
+        onStatusChange={vi.fn()}
+        onReviewConflict={vi.fn()}
+        onKeepDraft={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Mara’s calendar')).toBeInTheDocument()
+  })
 })
 
 describe('EventDrawer conflict review', () => {
