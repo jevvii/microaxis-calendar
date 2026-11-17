@@ -48,6 +48,7 @@ export function EventDrawer({
   members,
   currentUserId,
   clock24h = false,
+  weekStartsOn = 1,
   viewerTimeZone,
   defaultCalendarId,
   canEdit,
@@ -75,6 +76,7 @@ export function EventDrawer({
   members: WorkspaceMembership[]
   currentUserId: string
   clock24h?: boolean
+  weekStartsOn?: 0 | 1
   viewerTimeZone?: string
   defaultCalendarId?: string
   canEdit: boolean
@@ -212,6 +214,8 @@ export function EventDrawer({
                 submitting={saving}
                 defaultTimeZone={viewerTimeZone}
                 defaultCalendarId={defaultCalendarId}
+                clock24h={clock24h}
+                weekStartsOn={weekStartsOn}
               />
             ) : event ? (
               <div className="grid gap-6">

@@ -71,3 +71,11 @@ export function toDateInput(value: string, timeZone: string) {
 export function fromDateInput(value: string, timeZone: string) {
   return fromZonedTime(`${value}T00:00:00`, timeZone).toISOString()
 }
+
+export function formatDateKey(dateKey: string, timeZone: string, pattern: string) {
+  return formatInTimeZone(
+    fromZonedTime(`${dateKey}T12:00:00`, timeZone),
+    timeZone,
+    pattern,
+  )
+}

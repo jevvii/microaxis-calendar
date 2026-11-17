@@ -1,6 +1,7 @@
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { useState } from 'react'
 import { addDaysToDateKey, fromDateInput, fromDateTimeLocal, toDateInput, toDateTimeLocal } from '../lib/date'
+import { adjustEndAfterStart } from '../lib/dateTimePicker'
 import { eventInputSchema } from '../lib/validation'
 import type {
   Calendar,
@@ -146,7 +147,35 @@ export function useEventForm({
   const [errors, setErrors] = useState<EventFormErrors>({})
 
   function setField<K extends keyof EventFormDraft>(key: K, value: EventFormDraft[K]) {
-    setDraft((current) => ({ ...current, [key]: value }))
+    setDraft((current) => {
+      const next = { ...current, [key]: value }
+
+      if (key === 'startValue') {
+        next.endValue = adjustEndAfterStart(
+          current.startValue,
+          value as string,
+          current.endValue,
+          current.allDay,
+        )
+      }
+
+      if (key === 'allDay') {
+        if (value) {
+          const startKey = current.startValue.slice(0, 10)
+          const endKey = current.endValue.slice(0, 10)
+          next.startValue = startKey
+          next.endValue = endKey >= startKey ? endKey : startKey
+        } else {
+          const startKey = current.startValue.slice(0, 10)
+          const endKey = current.endValue.slice(0, 10)
+          const safeEndKey = endKey >= startKey ? endKey : startKey
+          next.startValue = `${startKey}T09:00`
+          next.endValue = `${safeEndKey}T10:00`
+        }
+      }
+
+      return next
+    })
     setErrors((current) => {
       if (!current[key]) return current
       const next = { ...current }
@@ -233,7 +262,8 @@ export function useEventForm({
       }
       for (const issue of parsed.error.issues) {
         const rawKey = String(issue.path[0] ?? 'form')
-        nextErrors[fieldMap[rawKey] ?? rawKey] = issue.message
+        const field = fieldMap[rawKey] ?? rawKey
+        if (!nextErrors[field]) nextErrors[field] = issue.message
       }
     }
 

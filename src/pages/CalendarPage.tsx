@@ -112,10 +112,7 @@ export function CalendarPage() {
       ? 'agenda'
       : 'week'
   const calendarFilter = searchParams.get('calendar')
-  const rememberedCalendarId = useMemo(
-    () => readRememberedCalendar(activeWorkspaceId),
-    [activeWorkspaceId, calendarFilter],
-  )
+  const rememberedCalendarId = readRememberedCalendar(activeWorkspaceId)
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn })
   const weekEnd = addDays(weekStart, 6)
@@ -577,6 +574,7 @@ export function CalendarPage() {
         members={members}
         currentUserId={user?.id ?? ''}
         clock24h={clock24h}
+        weekStartsOn={weekStartsOn}
         viewerTimeZone={timeZone}
         defaultCalendarId={activeCalendar?.id}
         canEdit={canEditSelected && online}

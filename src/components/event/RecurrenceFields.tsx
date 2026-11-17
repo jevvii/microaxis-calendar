@@ -1,4 +1,5 @@
 import { Field } from '../ui/Field'
+import { DatePicker } from '../ui/DatePicker'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import type { EventFormDraft, RepeatEnd, RepeatFrequency } from '../../hooks/useEventForm'
@@ -6,11 +7,15 @@ import type { EventFormDraft, RepeatEnd, RepeatFrequency } from '../../hooks/use
 export function RecurrenceFields({
   draft,
   onChange,
+  timeZone,
+  weekStartsOn = 1,
   intervalError,
   untilError,
 }: {
   draft: EventFormDraft
   onChange: <K extends keyof EventFormDraft>(key: K, value: EventFormDraft[K]) => void
+  timeZone: string
+  weekStartsOn?: 0 | 1
   intervalError?: string
   untilError?: string
 }) {
@@ -66,13 +71,15 @@ export function RecurrenceFields({
             </Field>
           ) : (
             <Field label="Until" htmlFor="event-repeat-until" error={untilError}>
-              <Input
+              <DatePicker
                 id="event-repeat-until"
-                type="date"
                 value={draft.repeatUntil}
+                onChange={(value) => onChange('repeatUntil', value)}
+                timeZone={timeZone}
+                weekStartsOn={weekStartsOn}
+                min={draft.startValue.slice(0, 10) || undefined}
                 invalid={Boolean(untilError)}
-                aria-describedby={untilError ? 'event-repeat-until-error' : undefined}
-                onChange={(event) => onChange('repeatUntil', event.target.value)}
+                describedBy={untilError ? 'event-repeat-until-error' : undefined}
               />
             </Field>
           )}

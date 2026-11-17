@@ -10,6 +10,7 @@ import type {
   WorkspaceMembership,
 } from '../../types/domain'
 import { useEventForm } from '../../hooks/useEventForm'
+import { addMinutesToDateTimeLocal } from '../../lib/dateTimePicker'
 import { Button } from '../ui/Button'
 import { Field } from '../ui/Field'
 import { Input } from '../ui/Input'
@@ -45,6 +46,8 @@ export function EventForm({
   submitting = false,
   defaultTimeZone,
   defaultCalendarId,
+  clock24h = false,
+  weekStartsOn = 1,
 }: {
   mode: 'create' | 'edit'
   initial?: Event | null
@@ -56,6 +59,8 @@ export function EventForm({
   submitting?: boolean
   defaultTimeZone?: string
   defaultCalendarId?: string
+  clock24h?: boolean
+  weekStartsOn?: 0 | 1
 }) {
   const { draft, setField, errors, validate } = useEventForm({
     calendars,
@@ -73,17 +78,7 @@ export function EventForm({
 
   function handleAllDay(next: boolean) {
     setField('allDay', next)
-    setAllDayNotice(false)
-    if (next) {
-      setField('startValue', draft.startValue.slice(0, 10))
-      setField('endValue', draft.endValue.slice(0, 10))
-    } else {
-      const start = draft.startValue.slice(0, 10)
-      const end = draft.endValue.slice(0, 10)
-      setField('startValue', `${start}T09:00`)
-      setField('endValue', `${end}T10:00`)
-      setAllDayNotice(true)
-    }
+    setAllDayNotice(!next)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -179,9 +174,15 @@ export function EventForm({
         allDay={draft.allDay}
         startValue={draft.startValue}
         endValue={draft.endValue}
+        timeZone={draft.timeZone}
+        clock24h={clock24h}
+        weekStartsOn={weekStartsOn}
         startError={errors.startValue}
         endError={errors.endValue}
         onChange={(field, value) => setField(field, value)}
+        onDurationChange={(minutes) =>
+          setField('endValue', addMinutesToDateTimeLocal(draft.startValue, minutes))
+        }
       />
 
       <Field label="Time zone" htmlFor="event-timezone">
@@ -256,6 +257,8 @@ export function EventForm({
       <RecurrenceFields
         draft={draft}
         onChange={setField}
+        timeZone={draft.timeZone}
+        weekStartsOn={weekStartsOn}
         intervalError={errors.repeatInterval}
         untilError={errors.repeatUntil}
       />

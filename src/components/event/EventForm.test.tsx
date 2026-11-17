@@ -52,6 +52,12 @@ const members: WorkspaceMembership[] = [
   },
 ]
 
+function setInput(label: string, value: string) {
+  const input = screen.getByLabelText(label)
+  fireEvent.change(input, { target: { value } })
+  fireEvent.blur(input)
+}
+
 describe('EventForm', () => {
   it('requires a title', async () => {
     const user = userEvent.setup()
@@ -88,12 +94,30 @@ describe('EventForm', () => {
     )
 
     await user.type(screen.getByLabelText('Title'), 'Pricing review')
-    fireEvent.change(screen.getByLabelText('Starts'), { target: { value: '2026-11-03T10:00' } })
-    fireEvent.change(screen.getByLabelText('Ends'), { target: { value: '2026-11-03T09:00' } })
+    setInput('Starts', '2026-11-03')
+    setInput('Start time', '10:00')
+    setInput('Ends', '2026-11-03')
+    setInput('End time', '09:00')
     await user.click(screen.getByRole('button', { name: 'Create event' }))
 
     expect(screen.getByText('End time must be after the start time')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('moves the end with the start while preserving the duration', () => {
+    render(
+      <EventForm
+        mode="create"
+        calendars={calendars}
+        categories={categories}
+        members={members}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    setInput('Start time', '10:00')
+
+    expect(screen.getByLabelText('End time')).toHaveValue('11:00 AM')
   })
 
   it('switches to date-only fields for an all-day event', async () => {
@@ -111,8 +135,34 @@ describe('EventForm', () => {
 
     await user.click(screen.getByRole('checkbox', { name: 'All-day event' }))
 
-    expect(screen.getByLabelText('Starts')).toHaveAttribute('type', 'date')
-    expect(screen.getByLabelText('Ends')).toHaveAttribute('type', 'date')
+    expect(screen.getByLabelText('Starts')).toBeInTheDocument()
+    expect(screen.getByLabelText('Ends')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Start time')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('End time')).not.toBeInTheDocument()
+  })
+
+  it('keeps the all-day validation message when the end is before the start', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <EventForm
+        mode="create"
+        calendars={calendars}
+        categories={categories}
+        members={members}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    await user.type(screen.getByLabelText('Title'), 'Studio day')
+    await user.click(screen.getByRole('checkbox', { name: 'All-day event' }))
+    setInput('Starts', '2026-11-05')
+    setInput('Ends', '2026-11-03')
+    await user.click(screen.getByRole('button', { name: 'Create event' }))
+
+    expect(
+      screen.getByText('End date must be on or after the start date'),
+    ).toBeInTheDocument()
   })
 
   it('names the calendar the new event will use', () => {
