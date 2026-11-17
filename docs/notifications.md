@@ -66,6 +66,13 @@ openssl rand -base64 32
 
 ## Cron configuration
 
+Deploy the two cron-invoked functions without JWT verification; they authenticate with the shared secret themselves:
+
+```bash
+npx supabase functions deploy notify --no-verify-jwt
+npx supabase functions deploy google-sync --no-verify-jwt
+```
+
 Set the database settings before scheduling:
 
 ```sql
@@ -73,7 +80,19 @@ alter database postgres set app.settings.supabase_url = 'https://<project-ref>.s
 alter database postgres set app.settings.cron_secret = '<same CRON_SECRET>';
 ```
 
-Then apply `202611020008_notify.sql`. It schedules:
+Hosted projects can reject `alter database ... set app.settings.*` from the SQL editor. In that case use the `private.cron_config` fallback and re-arm the jobs:
+
+```sql
+insert into private.cron_config (key, value)
+values
+  ('supabase_url', 'https://<project-ref>.supabase.co'),
+  ('cron_secret', '<same CRON_SECRET>')
+on conflict (key) do update set value = excluded.value;
+
+select private.schedule_microaxis_jobs();
+```
+
+Then apply `202611020008_notify.sql`, or run the fallback above if the migrations already ran. It schedules:
 
 - `microaxis-reminders` every minute
 - `microaxis-outbox` every minute

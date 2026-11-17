@@ -24,10 +24,12 @@ Deploy:
 ```bash
 npx supabase functions deploy send-invite
 npx supabase functions deploy google-oauth
-npx supabase functions deploy google-sync
-npx supabase functions deploy notify
+npx supabase functions deploy google-sync --no-verify-jwt
+npx supabase functions deploy notify --no-verify-jwt
 npx supabase functions deploy delete-account
 ```
+
+`notify` and `google-sync` are called by pg_cron with `Authorization: Bearer <CRON_SECRET>`, not a Supabase JWT. Deploy them with `--no-verify-jwt`; each function still checks the secret itself. Without the flag the gateway rejects the request with `UNAUTHORIZED_INVALID_JWT_FORMAT`.
 
 Set secrets:
 
@@ -94,11 +96,23 @@ Browsers request push permission only after the user clicks **Enable browser not
 
 ## 6. pg_cron
 
-Set database settings, then apply `202611020008_notify.sql`:
+Set the cron configuration before `supabase db push`, or set it afterward and re-arm the jobs.
 
 ```sql
 alter database postgres set app.settings.supabase_url = 'https://<project-ref>.supabase.co';
 alter database postgres set app.settings.cron_secret = '<same CRON_SECRET>';
+```
+
+Hosted projects can reject `alter database ... set app.settings.*` from the SQL editor with error 42501. Use the fallback instead:
+
+```sql
+insert into private.cron_config (key, value)
+values
+  ('supabase_url', 'https://<project-ref>.supabase.co'),
+  ('cron_secret', '<same CRON_SECRET>')
+on conflict (key) do update set value = excluded.value;
+
+select private.schedule_microaxis_jobs();
 ```
 
 The migration schedules:
