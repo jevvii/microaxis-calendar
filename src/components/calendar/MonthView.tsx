@@ -7,6 +7,8 @@ export function MonthView({
   date,
   events,
   timeZone,
+  weekStartsOn = 1,
+  clock24h = false,
   onSelectEvent,
   onCreateAt,
   onOpenDay,
@@ -14,16 +16,21 @@ export function MonthView({
   date: Date
   events: EventOccurrence[]
   timeZone: string
+  weekStartsOn?: 0 | 1
+  clock24h?: boolean
   onSelectEvent: (event: EventOccurrence) => void
   onCreateAt?: (date: Date) => void
   onOpenDay?: (date: Date) => void
 }) {
   const monthStart = startOfMonth(date)
   const monthEnd = endOfMonth(date)
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
-  const gridEnd = addDays(startOfWeek(addDays(monthEnd, 1), { weekStartsOn: 1 }), 6)
+  const gridStart = startOfWeek(monthStart, { weekStartsOn })
+  const gridEnd = addDays(startOfWeek(addDays(monthEnd, 1), { weekStartsOn }), 6)
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
-  const todayKey = format(new Date(), 'yyyy-MM-dd')
+  const todayKey = dateKeyInTimeZone(new Date(), timeZone)
+  const weekdayLabels = Array.from({ length: 7 }, (_, index) =>
+    format(addDays(gridStart, index), 'EEE'),
+  )
 
   const eventsByDay = new Map<string, EventOccurrence[]>()
   for (const event of events) {
@@ -36,7 +43,7 @@ export function MonthView({
   return (
     <div className="min-w-[720px]">
       <div className="grid grid-cols-7 border-b border-line bg-surface-2">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+        {weekdayLabels.map((day) => (
           <div
             key={day}
             className="border-r border-line px-3 py-2 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-3 last:border-r-0"
@@ -79,6 +86,7 @@ export function MonthView({
                     key={`${event.id}-${event.occurrenceStart}`}
                     event={event}
                     timeZone={timeZone}
+                    clock24h={clock24h}
                     compact
                     onSelect={() => onSelectEvent(event)}
                   />

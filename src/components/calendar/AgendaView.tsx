@@ -8,11 +8,13 @@ export function AgendaView({
   days,
   eventsByDay,
   timeZone,
+  clock24h = false,
   onSelectEvent,
 }: {
   days: Date[]
   eventsByDay: Map<string, EventOccurrence[]>
   timeZone: string
+  clock24h?: boolean
   onSelectEvent: (event: EventOccurrence) => void
 }) {
   const populatedDays = days
@@ -50,7 +52,9 @@ export function AgendaView({
                     className="grid gap-3 rounded-panel border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong hover:bg-surface-2 sm:grid-cols-[9.5rem_1fr_auto] sm:items-center"
                   >
                     <span className="whitespace-nowrap font-mono text-[11px] text-ink-3">
-                      {event.allDay ? 'All day' : eventTimeLabel(event, timeZone, false)}
+                      {event.allDay
+                        ? 'All day'
+                        : eventTimeLabel(event, timeZone, clock24h)}
                     </span>
                     <span className="min-w-0">
                       <span className="flex flex-wrap items-center gap-2">

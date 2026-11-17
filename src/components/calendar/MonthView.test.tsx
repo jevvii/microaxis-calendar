@@ -67,6 +67,21 @@ describe('MonthView', () => {
     expect(screen.getByLabelText('Created by Mara Velasco')).toBeInTheDocument()
   })
 
+  it('starts the grid on Sunday when the viewer week starts on Sunday', () => {
+    render(
+      <MonthView
+        date={new Date('2026-11-01T00:00:00')}
+        events={[]}
+        timeZone="Asia/Manila"
+        weekStartsOn={0}
+        onSelectEvent={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId('month-day-2026-11-01')).toBeInTheDocument()
+    expect(screen.queryByTestId('month-day-2026-10-31')).not.toBeInTheDocument()
+  })
+
   it('shows three event bands and a +N more count', () => {
     const events = Array.from({ length: 5 }, (_, index) => ({
       ...baseEvent,

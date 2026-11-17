@@ -1,3 +1,4 @@
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { useState } from 'react'
 import { addDaysToDateKey, fromDateInput, fromDateTimeLocal, toDateInput, toDateTimeLocal } from '../lib/date'
 import { eventInputSchema } from '../lib/validation'
@@ -38,11 +39,11 @@ export type EventFormDraft = {
 
 export type EventFormErrors = Record<string, string>
 
-function nextHourLocal(timeZone: string) {
-  const now = new Date()
-  now.setMinutes(0, 0, 0)
-  now.setHours(now.getHours() + 1)
-  return toDateTimeLocal(now.toISOString(), timeZone)
+export function nextHourLocal(timeZone: string) {
+  const zoned = toZonedTime(new Date(), timeZone)
+  zoned.setMinutes(0, 0, 0)
+  zoned.setHours(zoned.getHours() + 1)
+  return toDateTimeLocal(fromZonedTime(zoned, timeZone).toISOString(), timeZone)
 }
 
 function parseRule(rule: string | null) {
@@ -84,8 +85,9 @@ export function createInitialDraft(
   calendars: Calendar[],
   categories: EventCategory[],
   initial?: Event | null,
+  defaultTimeZone = 'Asia/Manila',
 ): EventFormDraft {
-  const timeZone = initial?.timeZone ?? 'Asia/Manila'
+  const timeZone = initial?.timeZone ?? defaultTimeZone
   const startValue = initial
     ? initial.allDay
       ? toDateInput(initial.startsAt, timeZone)
@@ -123,13 +125,15 @@ export function useEventForm({
   calendars,
   categories,
   initial,
+  defaultTimeZone,
 }: {
   calendars: Calendar[]
   categories: EventCategory[]
   initial?: Event | null
+  defaultTimeZone?: string
 }) {
   const [draft, setDraft] = useState<EventFormDraft>(() =>
-    createInitialDraft(calendars, categories, initial),
+    createInitialDraft(calendars, categories, initial, defaultTimeZone),
   )
   const [errors, setErrors] = useState<EventFormErrors>({})
 

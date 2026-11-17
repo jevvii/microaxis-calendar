@@ -65,4 +65,18 @@ describe('WeekView', () => {
     expect(screen.getByText('OceanJet release review')).toBeInTheDocument()
     expect(screen.getByLabelText('Created by Ivo Santos')).toBeInTheDocument()
   })
+
+  it('uses the viewer 24-hour clock preference', () => {
+    render(
+      <WeekView
+        weekStart={new Date('2026-11-02T00:00:00')}
+        events={[event]}
+        timeZone="Asia/Manila"
+        clock24h
+        onSelectEvent={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('09:30')).toBeInTheDocument()
+  })
 })

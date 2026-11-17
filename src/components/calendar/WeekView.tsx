@@ -1,7 +1,7 @@
 import { addDays, format } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { useEffect, useMemo, useRef } from 'react'
-import { dateKeyInTimeZone } from '../../lib/date'
+import { dateKeyInTimeZone, formatTimeInTimeZone } from '../../lib/date'
 import type { EventOccurrence } from '../../types/domain'
 import { CreatorMark } from './CreatorMark'
 import { EventBand } from './EventBand'
@@ -42,16 +42,18 @@ export function WeekView({
   weekStart,
   events,
   timeZone,
+  clock24h = false,
   onSelectEvent,
 }: {
   weekStart: Date
   events: EventOccurrence[]
   timeZone: string
+  clock24h?: boolean
   onSelectEvent: (event: EventOccurrence) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
-  const todayKey = format(new Date(), 'yyyy-MM-dd')
+  const todayKey = dateKeyInTimeZone(new Date(), timeZone)
   const nowMinutes =
     Number(formatInTimeZone(new Date(), timeZone, 'HH')) * 60 +
     Number(formatInTimeZone(new Date(), timeZone, 'mm'))
@@ -94,6 +96,8 @@ export function WeekView({
           return (
             <div
               key={key}
+              data-testid={`week-day-${key}`}
+              aria-current={today ? 'date' : undefined}
               className={`border-r border-line px-3 py-2 last:border-r-0 ${
                 today ? 'bg-accent-wash/40' : ''
               }`}
@@ -127,6 +131,7 @@ export function WeekView({
                   key={`${event.id}-${event.occurrenceStart}`}
                   event={event}
                   timeZone={timeZone}
+                  clock24h={clock24h}
                   compact
                   onSelect={() => onSelectEvent(event)}
                 />
@@ -169,7 +174,11 @@ export function WeekView({
                   const width = 100 / laneCount
                   const creatorName = event.creator?.fullName ?? 'Unknown creator'
                   const color = event.category?.color ?? '#67675E'
-                  const time = formatInTimeZone(new Date(event.occurrenceStart), timeZone, 'h:mm a')
+                  const time = formatTimeInTimeZone(
+                    new Date(event.occurrenceStart),
+                    timeZone,
+                    clock24h,
+                  )
 
                   return (
                     <button

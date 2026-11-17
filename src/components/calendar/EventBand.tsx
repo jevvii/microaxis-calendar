@@ -9,18 +9,22 @@ export function EventBand({
   event,
   timeZone,
   compact = false,
+  clock24h = false,
   onSelect,
   className,
 }: {
   event: EventOccurrence
   timeZone: string
   compact?: boolean
+  clock24h?: boolean
   onSelect: () => void
   className?: string
 }) {
   const creatorName = event.creator?.fullName ?? 'Unknown creator'
   const color = event.category?.color ?? fallbackColor
-  const time = event.allDay ? 'All day' : eventTimeLabel(event, timeZone, false).split(' – ')[0]
+  const time = event.allDay
+    ? 'All day'
+    : eventTimeLabel(event, timeZone, clock24h).split(' – ')[0]
 
   return (
     <button

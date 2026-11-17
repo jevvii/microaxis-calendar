@@ -46,6 +46,8 @@ export function EventDrawer({
   categories,
   members,
   currentUserId,
+  clock24h = false,
+  viewerTimeZone,
   canEdit,
   canModerate = false,
   online = true,
@@ -69,6 +71,8 @@ export function EventDrawer({
   categories: EventCategory[]
   members: WorkspaceMembership[]
   currentUserId: string
+  clock24h?: boolean
+  viewerTimeZone?: string
   canEdit: boolean
   canModerate?: boolean
   online?: boolean
@@ -160,7 +164,11 @@ export function EventDrawer({
                         <p className="mt-1 text-xs text-ink-3">
                           {conflict.allDay
                             ? 'All day'
-                            : eventTimeLabel(conflict, conflict.timeZone, false)}
+                            : eventTimeLabel(
+                                conflict,
+                                viewerTimeZone ?? conflict.timeZone,
+                                clock24h,
+                              )}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <Button
@@ -191,6 +199,7 @@ export function EventDrawer({
                 onSubmit={onSave}
                 onCancel={mode === 'edit' ? onCancelEdit : undefined}
                 submitting={saving}
+                defaultTimeZone={viewerTimeZone}
               />
             ) : event ? (
               <div className="grid gap-6">
@@ -211,7 +220,7 @@ export function EventDrawer({
                   <p className="mt-2 text-sm text-ink-3">
                     {event.allDay
                       ? 'All day'
-                      : eventTimeLabel(event, event.timeZone, false)}
+                      : eventTimeLabel(event, viewerTimeZone ?? event.timeZone, clock24h)}
                   </p>
                 </div>
 

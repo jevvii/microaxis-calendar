@@ -78,4 +78,21 @@ describe('AgendaView', () => {
     expect(screen.getByTestId('agenda-day-2026-11-05')).toHaveTextContent('Pricing office hours')
     expect(screen.queryByTestId('agenda-day-2026-11-04')).not.toBeInTheDocument()
   })
+
+  it('uses the viewer 24-hour clock preference', () => {
+    const weekStart = startOfWeek(new Date('2026-11-02T00:00:00'), { weekStartsOn: 1 })
+    const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
+
+    render(
+      <AgendaView
+        days={days}
+        eventsByDay={new Map([['2026-11-03', [makeEvent()]]])}
+        timeZone="Asia/Manila"
+        clock24h
+        onSelectEvent={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('09:30 – 10:30')).toBeInTheDocument()
+  })
 })

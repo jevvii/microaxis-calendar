@@ -11,6 +11,8 @@ export function CalendarCanvas({
   date,
   events,
   timeZone,
+  weekStartsOn = 1,
+  clock24h = false,
   onSelectEvent,
   onCreateAt,
   onOpenDay,
@@ -19,11 +21,13 @@ export function CalendarCanvas({
   date: Date
   events: EventOccurrence[]
   timeZone: string
+  weekStartsOn?: 0 | 1
+  clock24h?: boolean
   onSelectEvent: (event: EventOccurrence) => void
   onCreateAt?: (date: Date) => void
   onOpenDay?: (date: Date) => void
 }) {
-  const weekStart = startOfWeek(date, { weekStartsOn: 1 })
+  const weekStart = startOfWeek(date, { weekStartsOn })
   const days = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index))
 
   if (view === 'month') {
@@ -32,6 +36,8 @@ export function CalendarCanvas({
         date={date}
         events={events}
         timeZone={timeZone}
+        weekStartsOn={weekStartsOn}
+        clock24h={clock24h}
         onSelectEvent={onSelectEvent}
         onCreateAt={onCreateAt}
         onOpenDay={onOpenDay}
@@ -45,6 +51,7 @@ export function CalendarCanvas({
         weekStart={weekStart}
         events={events}
         timeZone={timeZone}
+        clock24h={clock24h}
         onSelectEvent={onSelectEvent}
       />
     )
@@ -63,6 +70,7 @@ export function CalendarCanvas({
       days={days}
       eventsByDay={eventsByDay}
       timeZone={timeZone}
+      clock24h={clock24h}
       onSelectEvent={onSelectEvent}
     />
   )

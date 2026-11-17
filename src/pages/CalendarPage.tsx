@@ -37,7 +37,6 @@ import type { Event, EventInput, EventOccurrence, EventStatus, RsvpStatus } from
 import { calendarRole, canEditEvent } from '../lib/permissions'
 
 const FILTERS_KEY = 'microaxis-calendar-filters'
-const timeZone = 'Asia/Manila'
 
 function viewFrom(value: string | null): CalendarView {
   return value === 'month' || value === 'agenda' ? value : 'week'
@@ -85,6 +84,9 @@ export function CalendarPage() {
     teams,
     membership,
   } = useWorkspace()
+  const timeZone = user?.timezone ?? 'Asia/Manila'
+  const clock24h = user?.clock24h ?? false
+  const weekStartsOn = user?.weekStartsOn ?? 1
   const [searchParams, setSearchParams] = useSearchParams()
   const [filters, setFilters] = useState<FilterState>(readFilters)
   const online = useOnlineStatus()
@@ -110,7 +112,7 @@ export function CalendarPage() {
       : 'week'
   const calendarFilter = searchParams.get('calendar')
 
-  const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 })
+  const weekStart = startOfWeek(selectedDate, { weekStartsOn })
   const weekEnd = addDays(weekStart, 6)
   const monthStart = startOfMonth(selectedDate)
   const monthEnd = addDays(endOfMonth(selectedDate), 1)
@@ -505,6 +507,8 @@ export function CalendarPage() {
             date={selectedDate}
             events={occurrences}
             timeZone={timeZone}
+            weekStartsOn={weekStartsOn}
+            clock24h={clock24h}
             onSelectEvent={(event: EventOccurrence) => openEvent(event)}
             onCreateAt={() => openNewEvent()}
             onOpenDay={(date) =>
@@ -540,6 +544,8 @@ export function CalendarPage() {
         categories={categories}
         members={members}
         currentUserId={user?.id ?? ''}
+        clock24h={clock24h}
+        viewerTimeZone={timeZone}
         canEdit={canEditSelected && online}
         canModerate={membership?.role === 'owner' || membership?.role === 'admin'}
         online={online}

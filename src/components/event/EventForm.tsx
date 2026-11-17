@@ -20,7 +20,7 @@ import { ParticipantPicker } from './ParticipantPicker'
 import { RecurrenceFields } from './RecurrenceFields'
 import { VisibilityControl } from './VisibilityControl'
 
-const timeZones = [
+const fallbackTimeZones = [
   'Asia/Manila',
   'UTC',
   'Asia/Tokyo',
@@ -28,6 +28,11 @@ const timeZones = [
   'Europe/London',
   'America/New_York',
 ]
+
+function supportedTimeZones() {
+  const supported = Intl.supportedValuesOf?.('timeZone')
+  return supported && supported.length > 0 ? supported : fallbackTimeZones
+}
 
 export function EventForm({
   mode,
@@ -38,6 +43,7 @@ export function EventForm({
   onSubmit,
   onCancel,
   submitting = false,
+  defaultTimeZone,
 }: {
   mode: 'create' | 'edit'
   initial?: Event | null
@@ -47,13 +53,19 @@ export function EventForm({
   onSubmit: (input: EventInput) => void
   onCancel?: () => void
   submitting?: boolean
+  defaultTimeZone?: string
 }) {
   const { draft, setField, errors, validate } = useEventForm({
     calendars,
     categories,
     initial,
+    defaultTimeZone,
   })
   const [allDayNotice, setAllDayNotice] = useState(false)
+  const availableTimeZones = supportedTimeZones()
+  const timeZones = availableTimeZones.includes(draft.timeZone)
+    ? availableTimeZones
+    : [draft.timeZone, ...availableTimeZones]
 
   function handleAllDay(next: boolean) {
     setField('allDay', next)

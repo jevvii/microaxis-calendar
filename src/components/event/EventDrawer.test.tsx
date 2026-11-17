@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Calendar, Event, WorkspaceMembership } from '../../types/domain'
 import { EventDrawer } from './EventDrawer'
 
+vi.mock('./EventCollaboration', () => ({
+  EventCollaboration: () => null,
+}))
+
 const calendar: Calendar = {
   id: '30000000-0000-4000-8000-000000000001',
   workspaceId: '10000000-0000-4000-8000-000000000001',
@@ -90,6 +94,36 @@ function renderDrawer(conflict: Event | null) {
     />,
   )
 }
+
+describe('EventDrawer time display', () => {
+  it('shows the event in the viewer time zone with the viewer clock', () => {
+    render(
+      <EventDrawer
+        open
+        onOpenChange={vi.fn()}
+        mode="view"
+        event={event}
+        calendars={[calendar]}
+        categories={[]}
+        members={members}
+        currentUserId="a0000000-0000-4000-8000-000000000001"
+        clock24h
+        viewerTimeZone="America/New_York"
+        canEdit
+        onEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+        onRsvp={vi.fn()}
+        onStatusChange={vi.fn()}
+        onReviewConflict={vi.fn()}
+        onKeepDraft={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('20:30 – 21:30')).toBeInTheDocument()
+  })
+})
 
 describe('EventDrawer conflict review', () => {
   it('reviews the newer version without discarding the draft', async () => {
